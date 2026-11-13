@@ -1,6 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
-import { ForgeError, type ForgeOperations, type GatewayTool } from '@xera/forge-core'
+import { ForgeError, type ForgeOperations, type GatewayTool } from '@x-era/forge-core'
 
 export type DynamicMode = 'off' | 'whitelist' | 'all'
 

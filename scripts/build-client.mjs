@@ -18,7 +18,7 @@ const entry = join(root, 'packages/skill/client/index.tsx')
 const outDir = join(root, 'packages/skill/lib')
 const temporary = join(outDir, 'client.bundle.cjs')
 const target = join(outDir, 'client.js')
-const packageName = '@xera/dsh-forge-skill'
+const packageName = '@x-era/dsh-forge-skill'
 
 /** Specifiers the shell's frozen module table resolves (packages/client/web/src/platform.ts). */
 const PLATFORM_MODULES = [

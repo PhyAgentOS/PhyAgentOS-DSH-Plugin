@@ -18,11 +18,11 @@
 
 | 项 | 结果 |
 |---|---|
-| 客户端产物 | `lib/client.js` 17.7 KB，加载后注册 `@xera/dsh-forge-skill` factory |
+| 客户端产物 | `lib/client.js` 17.7 KB，加载后注册 `@x-era/dsh-forge-skill` factory |
 | 插件页条目 | 单测：`apply(ctx)` 依次调用 `slots.inject('plugins.item')` → `slots.register({id:'forge-config'})` |
 | 宿主启动 | `dsh --profile m0test --port 3091` 启动无激活错误 |
-| 客户端图 | 启动载荷包含 `"id":"@xera/dsh-forge-skill","url":"plugins/??@xera/dsh-forge-skill/client.js&rev=cc25e44d9163"` |
-| bundle 可取 | `GET /plugins/??@xera/dsh-forge-skill/client.js&rev=…` → 200，17,784 字节 |
+| 客户端图 | 启动载荷包含 `"id":"@x-era/dsh-forge-skill","url":"plugins/??@x-era/dsh-forge-skill/client.js&rev=cc25e44d9163"` |
+| bundle 可取 | `GET /plugins/??@x-era/dsh-forge-skill/client.js&rev=…` → 200，17,784 字节 |
 | 同源 API | `GET /forge/api/profiles` → `{"profiles":["m0test","web"],"current":"m0test"}`；`/forge/api/skills` 返回 5 个 skill |
 | 回归 | `pnpm test` → **16 passed / 0 failed** |
 

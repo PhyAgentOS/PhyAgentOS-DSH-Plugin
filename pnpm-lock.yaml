@@ -26,13 +26,13 @@ importers:
 
   bundle:
     dependencies:
-      '@xera/dsh-forge-skill':
+      '@x-era/dsh-forge-skill':
         specifier: file:../packages/skill
         version: link:../packages/skill
 
   packages/cli:
     dependencies:
-      '@xera/forge-core':
+      '@x-era/forge-core':
         specifier: file:../core
         version: link:../core
 
@@ -47,13 +47,13 @@ importers:
 
   packages/mcp:
     dependencies:
-      '@xera/forge-core':
+      '@x-era/forge-core':
         specifier: file:../core
         version: link:../core
 
   packages/skill:
     dependencies:
-      '@xera/forge-core':
+      '@x-era/forge-core':
         specifier: file:../core
         version: link:../core
       yaml:

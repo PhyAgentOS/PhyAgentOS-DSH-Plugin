@@ -67,17 +67,17 @@
 
 ## M6 · 可移植层 ✅ 已完成（见 [M6 验收](M6-acceptance.md)，未做外部宿主实测）
 
-### CLI（`@xera/forge-cli`）
+### CLI（`@x-era/forge-cli`）
 
 - `bin/forge.mjs` 直接调用 core，命令：`list / install / update / remove / start / stop / status / call / doctor / export`；
 - 与 DSH 宿主共享同一 `home` 与 `state.json`；引入跨进程文件锁（写操作互斥），避免 CLI 与宿主同时写；
 - 输出支持 `--json`，便于脚本和其他 agent 的 shell 工具消费。
 
-### MCP（`@xera/forge-mcp`）
+### MCP（`@x-era/forge-mcp`）
 
 - 独立进程的 stdio MCP server（`initialize` / `tools/list` / `tools/call`），把 13 个 forge 工具映射成 MCP tools；
 - 可选暴露 `prompts`（每个 skill 一个 `skill__<name>`）与 `resources`（`skill://<name>`）；
-- 宿主侧配置示例：Claude Code 的 `.mcp.json`、opencode 的 MCP 配置，命令即 `npx @xera/forge-mcp`。
+- 宿主侧配置示例：Claude Code 的 `.mcp.json`、opencode 的 MCP 配置，命令即 `npx @x-era/forge-mcp`。
 
 ### MCP 与 Forge Tool API 的区别
 

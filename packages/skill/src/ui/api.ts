@@ -1,6 +1,6 @@
 import type { IncomingMessage } from 'node:http'
 
-import { DshProfileStore, ForgeError, SkillFileStore } from '@xera/forge-core'
+import { DshProfileStore, ForgeError, SkillFileStore } from '@x-era/forge-core'
 
 /** Everything the configuration API needs; both transports share it. */
 export interface ApiDeps {

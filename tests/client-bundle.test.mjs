@@ -17,7 +17,7 @@ test('client bundle registers a DSH module factory and a plugins.item entry', as
   const run = new Function('window', code)
   run(window)
 
-  assert.equal(registered.id, '@xera/dsh-forge-skill')
+  assert.equal(registered.id, '@x-era/dsh-forge-skill')
 
   const react = {
     useState: () => [undefined, () => undefined],

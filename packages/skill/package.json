@@ -1,5 +1,5 @@
 {
-  "name": "@xera/dsh-forge-skill",
+  "name": "@x-era/dsh-forge-skill",
   "version": "0.1.0",
   "description": "Forge skill catalog for DeepSeek Harness: provider, management tools and doctor",
   "type": "module",
@@ -21,7 +21,7 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@xera/forge-core": "file:../core",
+    "@x-era/forge-core": "file:../core",
     "yaml": "^2.8.1"
   },
   "scripts": {

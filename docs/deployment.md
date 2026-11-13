@@ -2,13 +2,13 @@
 
 ## 1. 配置在哪一层
 
-DSH 的"插件配置"不是插件目录里的配置文件，也不是设置界面，而是**配置树里那一行的 `config`**。forge 的行由组合包 `@xera/dsh-forge` 插入，默认不带 config：
+DSH 的"插件配置"不是插件目录里的配置文件，也不是设置界面，而是**配置树里那一行的 `config`**。forge 的行由组合包 `@x-era/dsh-forge` 插入，默认不带 config：
 
 ```yaml
 # forge/bundle/cordis.patch.yml
 - insert:
     - id: forge-skill
-      name: '@xera/dsh-forge-skill'
+      name: '@x-era/dsh-forge-skill'
 ```
 
 生效值按层叠加，后者覆盖前者：

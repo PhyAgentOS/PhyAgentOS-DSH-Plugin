@@ -1,5 +1,5 @@
 {
-  "name": "@xera/forge-mcp",
+  "name": "@x-era/forge-mcp",
   "version": "0.1.0",
   "description": "MCP stdio server exposing Forge skill management tools to any agent host",
   "type": "module",
@@ -14,7 +14,7 @@
     "node": ">=22"
   },
   "dependencies": {
-    "@xera/forge-core": "file:../core"
+    "@x-era/forge-core": "file:../core"
   },
   "scripts": {
     "build": "node -e \"console.log('mcp is plain ESM')\""

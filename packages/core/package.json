@@ -1,5 +1,5 @@
 {
-  "name": "@xera/forge-core",
+  "name": "@x-era/forge-core",
   "version": "0.1.0",
   "description": "Host-neutral core for Forge skill management: manifest parsing, catalog and paths",
   "type": "module",

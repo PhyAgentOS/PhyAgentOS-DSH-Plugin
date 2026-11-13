@@ -1,5 +1,5 @@
 import type { SkillCandidate, SkillDefinition, SkillProvider } from '@deepseek-ai/dsh-skill'
-import { ForgeCatalog, type ForgeSkillEntry } from '@xera/forge-core'
+import { ForgeCatalog, type ForgeSkillEntry } from '@x-era/forge-core'
 
 /** Rank between `custom` (300) and `user-dsh` (400): user-level, but outranks nothing project-level. */
 export const FORGE_SKILL_RANK = 450

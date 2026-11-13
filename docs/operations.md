@@ -31,8 +31,8 @@ node scripts/forge.mjs status        # 每个 skill 的运行状态
 **升级插件**
 
 ```sh
-dsh plugin --profile web remove @xera/dsh-forge
-dsh plugin --profile web add @xera/dsh-forge@0.2.0
+dsh plugin --profile web remove @x-era/dsh-forge
+dsh plugin --profile web add @x-era/dsh-forge@0.2.0
 # 重启该 profile（bundle 成员是启动边界）
 ```
 
@@ -119,7 +119,7 @@ forge_cache_gc                # 删除所有已安装 skill 不再引用的节�
 ## 9. 卸载
 
 ```sh
-dsh plugin --profile web remove @xera/dsh-forge
+dsh plugin --profile web remove @x-era/dsh-forge
 ```
 
 `<home>` 不会被删除：skill、节点缓存与日志都保留，便于重装复用；确认不再需要时手动删除。

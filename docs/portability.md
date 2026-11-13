@@ -1,6 +1,6 @@
 # 可移植层：导出、CLI、MCP
 
-forge 的能力层（`@xera/forge-core` 的 `ForgeOperations`）与宿主无关；DSH 插件、CLI、MCP 都是它的薄适配器。
+forge 的能力层（`@x-era/forge-core` 的 `ForgeOperations`）与宿主无关；DSH 插件、CLI、MCP 都是它的薄适配器。
 
 ## 1. portable skill 导出
 
@@ -60,7 +60,7 @@ forge jobs | forge job <id> | forge cancel <id>
 // Claude Code (.mcp.json) / 其他 MCP 宿主
 {
   "mcpServers": {
-    "forge": { "command": "npx", "args": ["-y", "@xera/forge-mcp"] }
+    "forge": { "command": "npx", "args": ["-y", "@x-era/forge-mcp"] }
   }
 }
 ```

@@ -1,5 +1,5 @@
 {
-  "name": "@xera/forge-cli",
+  "name": "@x-era/forge-cli",
   "version": "0.1.0",
   "description": "Command line for Forge skill management (shares state with the DSH host)",
   "type": "module",
@@ -14,7 +14,7 @@
     "node": ">=22"
   },
   "dependencies": {
-    "@xera/forge-core": "file:../core"
+    "@x-era/forge-core": "file:../core"
   },
   "scripts": {
     "build": "node -e \"console.log('cli is plain ESM')\""

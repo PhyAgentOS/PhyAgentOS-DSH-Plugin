@@ -1,6 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
-import { ForgeError, type ForgeOperations } from '@xera/forge-core'
+import { ForgeError, type ForgeOperations } from '@x-era/forge-core'
 
 const objectOutput = {
   schema: { type: 'object', additionalProperties: true },

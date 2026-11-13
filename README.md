@@ -6,11 +6,11 @@ DeepSeek Harness（DSH）插件与工具集：安装、运行、调用和管理 
 
 | 包 | 作用 |
 |---|---|
-| `@xera/forge-core` | 能力层：manifest、catalog、registry 客户端、事务安装、NodeStore、Skill Runtime、Tool API、doctor |
-| `@xera/dsh-forge-skill` | DSH 插件：skill provider、管理工具、只读配置页、内置 `forge-usage` / `forge-skill-development` |
-| `@xera/forge-cli` | `forge` 命令行（与 DSH 共享同一 home 与 state） |
-| `@xera/forge-mcp` | MCP stdio server：把 forge 工具暴露给 MCP 宿主 |
-| `@xera/dsh-forge` | DSH 组合包（一行挂载） |
+| `@x-era/forge-core` | 能力层：manifest、catalog、registry 客户端、事务安装、NodeStore、Skill Runtime、Tool API、doctor |
+| `@x-era/dsh-forge-skill` | DSH 插件：skill provider、管理工具、只读配置页、内置 `forge-usage` / `forge-skill-development` |
+| `@x-era/forge-cli` | `forge` 命令行（与 DSH 共享同一 home 与 state） |
+| `@x-era/forge-mcp` | MCP stdio server：把 forge 工具暴露给 MCP 宿主 |
+| `@x-era/dsh-forge` | DSH 组合包（一行挂载） |
 
 ## 能力
 
@@ -58,7 +58,7 @@ dsh --profile dev --dump-config | grep -A6 'id: forge-skill'
 ### 从 npm 安装（发布后）
 
 ```sh
-dsh plugin --profile dev add @xera/dsh-forge
+dsh plugin --profile dev add @x-era/dsh-forge
 ```
 
 ## 配置

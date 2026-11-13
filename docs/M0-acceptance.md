@@ -6,9 +6,9 @@
 
 ```text
 forge/
-├── packages/core/        @xera/forge-core       manifest 解析、目录扫描、静态检查、路径
-├── packages/skill/       @xera/dsh-forge-skill  插件：provider + 三个只读工具
-├── bundle/               @xera/dsh-forge        组合包（一行）
+├── packages/core/        @x-era/forge-core       manifest 解析、目录扫描、静态检查、路径
+├── packages/skill/       @x-era/dsh-forge-skill  插件：provider + 三个只读工具
+├── bundle/               @x-era/dsh-forge        组合包（一行）
 ├── fixtures/skills/      minimal-grasp / broken-manifest / broken-doc
 └── tests/                node:test，8 个用例
 ```
@@ -37,18 +37,18 @@ forge/
 ```sh
 dsh --profile m0test --from-default-profile web --dump-config
 dsh plugin --profile m0test add .../forge/bundle
-dsh --profile m0test --dump-config | grep -A2 '@xera/dsh-forge'
+dsh --profile m0test --dump-config | grep -A2 '@x-era/dsh-forge'
 ```
 
 结果：
 
 ```yaml
-# == @xera/dsh-forge
+# == @x-era/dsh-forge
 - id: forge-skill
-  name: '@xera/dsh-forge-skill'
+  name: '@x-era/dsh-forge-skill'
 ```
 
-profile manifest 里 `dsh.profile.bundles` 为 `[base, web-app, @xera/dsh-forge]`，层顺序正确。
+profile manifest 里 `dsh.profile.bundles` 为 `[base, web-app, @x-era/dsh-forge]`，层顺序正确。
 
 ### 2.3 真实宿主：插件能启动
 

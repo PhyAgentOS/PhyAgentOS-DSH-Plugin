@@ -7,7 +7,7 @@
  */
 import { join } from 'node:path'
 
-import { ForgeOperations, resolveForgeHome } from '@xera/forge-core'
+import { ForgeOperations, resolveForgeHome } from '@x-era/forge-core'
 
 const argv = process.argv.slice(2)
 const command = argv.shift()

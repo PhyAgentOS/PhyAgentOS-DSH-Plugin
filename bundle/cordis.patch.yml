@@ -4,4 +4,4 @@
 # 后续里程碑依次追加 forge-registry / forge-skill-runtime / forge-tools。
 - insert:
     - id: forge-skill
-      name: '@xera/dsh-forge-skill'
+      name: '@x-era/dsh-forge-skill'

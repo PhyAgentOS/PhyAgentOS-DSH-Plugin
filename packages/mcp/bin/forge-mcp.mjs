@@ -9,7 +9,7 @@
  */
 import { createInterface } from 'node:readline'
 
-import { ForgeOperations, resolveForgeHome } from '@xera/forge-core'
+import { ForgeOperations, resolveForgeHome } from '@x-era/forge-core'
 
 const PROTOCOL_VERSION = '2024-11-05'
 const home = resolveForgeHome(process.env.DSH_FORGE_HOME)

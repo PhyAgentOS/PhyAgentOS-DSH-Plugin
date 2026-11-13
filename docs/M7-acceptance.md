@@ -22,17 +22,17 @@
 ```text
 $ node scripts/prepare-publish.mjs
 staged 3 packages under dist/publish:
-  @xera/dsh-forge-skill
-  @xera/dsh-forge
-  @xera/forge-core
+  @x-era/dsh-forge-skill
+  @x-era/dsh-forge
+  @x-era/forge-core
 
 $ node scripts/verify-release.mjs
 release verification passed
 
 $ npm pack --dry-run（各包）
-@xera/forge-core          37 files   28,214 B
-@xera/dsh-forge-skill     16 files   18,909 B   （含 lib/client.js）
-@xera/dsh-forge            2 files      576 B   （cordis.patch.yml + package.json）
+@x-era/forge-core          37 files   28,214 B
+@x-era/dsh-forge-skill     16 files   18,909 B   （含 lib/client.js）
+@x-era/dsh-forge            2 files      576 B   （cordis.patch.yml + package.json）
 ```
 
 运维能力（真实工具 handler）：

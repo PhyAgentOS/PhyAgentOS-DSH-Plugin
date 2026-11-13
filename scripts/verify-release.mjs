@@ -16,7 +16,7 @@ const mcp = JSON.parse(await readFile(join(root, 'packages/mcp/package.json'), '
 const bundle = JSON.parse(await readFile(join(root, 'bundle/package.json'), 'utf8'))
 
 for (const [label, manifest] of [['core', core], ['skill', skill], ['cli', cli], ['mcp', mcp], ['bundle', bundle]]) {
-  check(typeof manifest.name === 'string' && manifest.name.startsWith('@xera/'), `${label}: name must be @xera/*`)
+  check(typeof manifest.name === 'string' && manifest.name.startsWith('@x-era/'), `${label}: name must be @x-era/*`)
   check(/^\d+\.\d+\.\d+/.test(manifest.version), `${label}: version must be semver`)
   check(manifest.type === 'module', `${label}: type must be module`)
 }

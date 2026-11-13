@@ -1,5 +1,5 @@
 {
-  "name": "@xera/dsh-forge",
+  "name": "@x-era/dsh-forge",
   "version": "0.1.0",
   "description": "DeepSeek Harness bundle for Forge skill management",
   "type": "module",
@@ -17,6 +17,6 @@
     "dsh": ">=0.2.0 <0.3.0"
   },
   "dependencies": {
-    "@xera/dsh-forge-skill": "file:../packages/skill"
+    "@x-era/dsh-forge-skill": "file:../packages/skill"
   }
 }

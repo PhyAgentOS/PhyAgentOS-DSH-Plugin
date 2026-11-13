@@ -32,5 +32,5 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           for pkg in forge-core dsh-forge-skill forge-cli forge-mcp dsh-forge; do
-            npm publish "dist/publish/@xera/$pkg" --provenance --access public
+            npm publish "dist/publish/@x-era/$pkg" --provenance --access public
           done

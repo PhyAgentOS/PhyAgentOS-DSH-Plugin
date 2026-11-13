@@ -9,7 +9,7 @@ import {
   SkillFileStore,
   forgePaths,
   resolveForgeHome,
-} from '@xera/forge-core'
+} from '@x-era/forge-core'
 
 import { DynamicToolRegistry } from './dynamic.js'
 import { DEVELOPMENT_SKILL_CONTENT, DEVELOPMENT_SKILL_DESCRIPTION, DEVELOPMENT_SKILL_NAME } from './development.js'
