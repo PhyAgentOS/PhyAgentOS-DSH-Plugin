@@ -1,0 +1,22 @@
+{
+  "name": "forge",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.28.5",
+  "scripts": {
+    "build": "pnpm -r --filter \"./packages/*\" run build",
+    "clean": "rm -rf packages/*/lib",
+    "test": "pnpm build && node --test tests/*.test.mjs",
+    "release:prepare": "node scripts/prepare-publish.mjs",
+    "release:verify": "node scripts/verify-release.mjs",
+    "check:dsh": "node scripts/check-dsh-surface.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "esbuild": "^0.28.2",
+    "tar": "^7.5.22",
+    "typescript": "5.9.3",
+    "yaml": "^2.9.1"
+  }
+}

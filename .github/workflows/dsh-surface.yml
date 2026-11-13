@@ -1,0 +1,22 @@
+name: DSH surface
+
+on:
+  schedule:
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+
+jobs:
+  check:
+    if: vars.DSH_REPO != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.DSH_REPO }}
+          token: ${{ secrets.DSH_REPO_TOKEN }}
+          path: dsh
+      - run: node scripts/check-dsh-surface.mjs --checkout dsh

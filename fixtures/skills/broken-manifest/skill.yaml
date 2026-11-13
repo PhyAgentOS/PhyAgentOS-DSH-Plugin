@@ -1,0 +1,5 @@
+manifest_version: 1
+name: broken-manifest
+version: not-a-version
+description: ""
+profiles: {}

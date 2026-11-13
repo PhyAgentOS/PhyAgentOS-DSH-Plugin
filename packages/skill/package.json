@@ -1,0 +1,41 @@
+{
+  "name": "@xera/dsh-forge-skill",
+  "version": "0.1.0",
+  "description": "Forge skill catalog for DeepSeek Harness: provider, management tools and doctor",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json",
+    "./client": {
+      "default": "./lib/client.js"
+    }
+  },
+  "files": [
+    "lib/**/*.js",
+    "lib/**/*.d.ts"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@xera/forge-core": "file:../core",
+    "yaml": "^2.8.1"
+  },
+  "scripts": {
+    "build": "tsc -p . && node ../../scripts/build-client.mjs"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-plugin-manager"
+      ]
+    }
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

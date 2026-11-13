@@ -1,0 +1,30 @@
+{
+  "dsh": "0.2.2-rc.1",
+  "modules": {
+    "@deepseek-ai/cordis": {
+      "version": "4.1.0",
+      "hash": "sha256:298b272e325296dafbd037d548caab1f06aff099020e366327d5742404f16477",
+      "files": 9
+    },
+    "@deepseek-ai/dsh-tools": {
+      "version": "0.2.2-rc.1",
+      "hash": "sha256:b6f195cb9042028d82e46caa1ce71c5b2848f21d3e7b32aa9a1a76cb9cc156fe",
+      "files": 9
+    },
+    "@deepseek-ai/dsh-skill": {
+      "version": "0.2.2-rc.1",
+      "hash": "sha256:06b60107983825cb4c6421be128cace64666818af4b7037fe0d60695e302ecd2",
+      "files": 1
+    },
+    "@deepseek-ai/schemastery": {
+      "version": "3.19.0",
+      "hash": "sha256:4842ae261ba9a6b2771d928b50b78610d6d682f0e9723121696267326098d44f",
+      "files": 1
+    },
+    "@deepseek-ai/dsh-client-ui-primitives": {
+      "version": "0.2.2-rc.1",
+      "hash": "sha256:b557b05b33fa58a975799b3421cc8a5f2f465f427ca181318baaaf51ece81e41",
+      "files": 107
+    }
+  }
+}

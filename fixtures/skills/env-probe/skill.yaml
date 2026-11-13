@@ -1,0 +1,13 @@
+manifest_version: 2
+name: env-probe
+version: 0.1.0
+description: Prints the deployment environment injected by forge (profile.environment + host-provided required variables) and serves a minimal gateway.
+skill_document: SKILL.md
+gateway_url: http://127.0.0.1:19199
+required_tools: [probe.report]
+profiles:
+  default:
+    dataflow: profiles/default/dataflow.yaml
+    required_environment: [PROBE_REQUIRED]
+    environment:
+      PROBE_FIXED: fixed-from-skill

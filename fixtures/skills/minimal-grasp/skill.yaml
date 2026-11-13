@@ -1,0 +1,26 @@
+manifest_version: 2
+name: minimal-grasp
+version: 0.1.0
+description: Minimal fixture skill used by the forge plugin tests.
+skill_document: SKILL.md
+gateway_url: http://127.0.0.1:19002
+required_tools:
+  - sim.get_robot_info
+profiles:
+  mujoco-piper:
+    dataflow: profiles/mujoco-piper/dataflow.yaml
+    required_binaries:
+      - gateway
+    required_assets: []
+    required_environment: []
+    environment: {}
+artifacts:
+  nodes:
+    gateway:
+      artifact_id: gateway-1.0.2-linux-x86_64-tar-gz
+      version: 1.0.2
+      platform: linux
+      arch: x86_64
+      artifact_type: executable_tar_gz
+      entrypoint: gateway
+      sha256: 07584846f16012c6137b10cf743073cd2fe9a7f64564ba2322a7090e66fd3076

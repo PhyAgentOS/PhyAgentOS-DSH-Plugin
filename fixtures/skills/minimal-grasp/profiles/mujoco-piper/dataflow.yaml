@@ -1,0 +1,3 @@
+nodes:
+  - id: gateway
+    outputs: [sim_tool_out]

@@ -1,0 +1,8 @@
+manifest_version: 2
+name: broken-doc
+version: 0.1.0
+description: Manifest is valid but the instruction document is missing.
+gateway_url: http://127.0.0.1:19002
+profiles:
+  default:
+    dataflow: profiles/default/dataflow.yaml

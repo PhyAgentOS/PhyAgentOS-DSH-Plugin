@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.28.5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm test
+      - run: pnpm release:prepare
+      - run: pnpm release:verify
+      - name: Install smoke test
+        run: |
+          node -e "const p=require('./dist/publish/@xera/dsh-forge/package.json'); if (p.dependencies['@xera/dsh-forge-skill'] !== '0.1.0') process.exit(1)"

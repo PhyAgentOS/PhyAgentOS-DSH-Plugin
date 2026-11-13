@@ -1,0 +1,7 @@
+# Forge 组合包（M0）
+#
+# 只挂一行：skill 目录 + provider + 只读管理工具。
+# 后续里程碑依次追加 forge-registry / forge-skill-runtime / forge-tools。
+- insert:
+    - id: forge-skill
+      name: '@xera/dsh-forge-skill'

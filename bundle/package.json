@@ -1,0 +1,22 @@
+{
+  "name": "@xera/dsh-forge",
+  "version": "0.1.0",
+  "description": "DeepSeek Harness bundle for Forge skill management",
+  "type": "module",
+  "files": [
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "engines": {
+    "dsh": ">=0.2.0 <0.3.0"
+  },
+  "dependencies": {
+    "@xera/dsh-forge-skill": "0.1.0"
+  }
+}

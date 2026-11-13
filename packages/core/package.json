@@ -1,0 +1,30 @@
+{
+  "name": "@xera/forge-core",
+  "version": "0.1.0",
+  "description": "Host-neutral core for Forge skill management: manifest parsing, catalog and paths",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/**/*.js",
+    "lib/**/*.d.ts"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "yaml": "^2.8.1",
+    "tar": "^7.5.2"
+  },
+  "scripts": {
+    "build": "tsc -p ."
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
