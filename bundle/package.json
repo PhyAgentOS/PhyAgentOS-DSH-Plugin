@@ -17,6 +17,6 @@
     "dsh": ">=0.2.0 <0.3.0"
   },
   "dependencies": {
-    "@xera/dsh-forge-skill": "0.1.0"
+    "@xera/dsh-forge-skill": "file:../packages/skill"
   }
 }
