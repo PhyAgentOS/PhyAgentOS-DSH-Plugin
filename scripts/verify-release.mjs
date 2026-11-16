@@ -3,6 +3,7 @@
 import { readFile, stat } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import semver from 'semver'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const problems = []
@@ -17,8 +18,9 @@ const bundle = JSON.parse(await readFile(join(root, 'bundle/package.json'), 'utf
 
 for (const [label, manifest] of [['core', core], ['skill', skill], ['cli', cli], ['mcp', mcp], ['bundle', bundle]]) {
   check(typeof manifest.name === 'string' && manifest.name.startsWith('@x-era/'), `${label}: name must be @x-era/*`)
-  check(/^\d+\.\d+\.\d+/.test(manifest.version), `${label}: version must be semver`)
+  check(semver.valid(manifest.version) === manifest.version, `${label}: version must be semver`)
   check(manifest.type === 'module', `${label}: type must be module`)
+  check(manifest.repository?.url === 'git+https://github.com/PhyAgentOS/dsh-PhyAgentOS.git', `${label}: repository must identify the public source`)
 }
 
 check(skill.dsh?.client?.platform === 'web', 'skill: dsh.client.platform must be web')
@@ -46,6 +48,11 @@ if (await exists(dist)) {
     check(await exists(manifestPath), `dist: ${name} is not staged`)
     if (await exists(manifestPath)) {
       const manifest = JSON.parse(await readFile(manifestPath, 'utf8'))
+      const source = [core, skill, cli, mcp, bundle].find(item => item.name === name)
+      check(manifest.version === source.version, `dist: ${name} version differs from source`)
+      check(manifest.private !== true && manifest.publishConfig?.access === 'public', `dist: ${name} must be public`)
+      check(await exists(join(dist, name, 'LICENSE')), `dist: ${name} LICENSE missing`)
+      check(await exists(join(dist, name, 'README.md')), `dist: ${name} README missing`)
       for (const [dep, spec] of Object.entries(manifest.dependencies ?? {})) {
         check(!String(spec).startsWith('file:') && !String(spec).startsWith('workspace:'),
           `dist: ${name} dependency ${dep} is not pinned (${spec})`)

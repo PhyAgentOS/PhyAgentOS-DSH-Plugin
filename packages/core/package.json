@@ -26,5 +26,14 @@
   },
   "engines": {
     "node": ">=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PhyAgentOS/dsh-PhyAgentOS.git",
+    "directory": "packages/core"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
   }
 }

@@ -37,5 +37,20 @@
   },
   "engines": {
     "node": ">=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PhyAgentOS/dsh-PhyAgentOS.git",
+    "directory": "packages/skill"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.1.0",
+    "@deepseek-ai/schemastery": "^3.19.0",
+    "@deepseek-ai/dsh-tools": ">=0.2.2-rc.1 <0.3.0",
+    "@deepseek-ai/dsh-skill": ">=0.2.2-rc.1 <0.3.0"
   }
 }

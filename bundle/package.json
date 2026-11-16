@@ -18,5 +18,14 @@
   },
   "dependencies": {
     "@x-era/dsh-forge-skill": "file:../packages/skill"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PhyAgentOS/dsh-PhyAgentOS.git",
+    "directory": "bundle"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
   }
 }

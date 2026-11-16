@@ -3,3 +3,7 @@ packages:
   - bundle
 allowBuilds:
   esbuild: true
+
+# DSH supplies these peers; do not install another copy in the plugin.
+autoInstallPeers: false
+strictPeerDependencies: false

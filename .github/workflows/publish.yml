@@ -2,35 +2,63 @@ name: Publish
 
 on:
   push:
-    tags: ['v*']
+    tags:
+      - 'forge-core/v*'
+      - 'dsh-forge-skill/v*'
+      - 'forge-cli/v*'
+      - 'forge-mcp/v*'
+      - 'dsh-forge/v*'
   workflow_dispatch:
 
 permissions:
   contents: read
-  id-token: write
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   publish:
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.3
+          registry-url: https://registry.npmjs.org
+      - run: npm install --global npm@11.19.1
       - uses: pnpm/action-setup@v4
         with:
           version: 11.28.5
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-          registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
-      - run: pnpm build
+      - run: pnpm release:check "$GITHUB_REF_NAME"
       - run: pnpm test
-      - run: pnpm release:prepare
-      - run: pnpm release:verify
-      - name: Publish packages
+      - name: Publish tagged package
+        id: release
+        run: pnpm release:publish "$GITHUB_REF_NAME"
+      - name: Attach exact npm tarball to GitHub release
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          TARBALL: ${{ steps.release.outputs.tarball }}
+          PACKAGE: ${{ steps.release.outputs.name }}
+          VERSION: ${{ steps.release.outputs.version }}
         run: |
-          for pkg in forge-core dsh-forge-skill forge-cli forge-mcp dsh-forge; do
-            npm publish "dist/publish/@x-era/$pkg" --provenance --access public
-          done
+          set -euo pipefail
+          if ! gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            args=()
+            if [[ "$VERSION" == *-* ]]; then args+=(--prerelease); fi
+            printf '%s\n' "npm: $PACKAGE@$VERSION" "Source tag: $GITHUB_REF_NAME" > "$RUNNER_TEMP/release-notes.md"
+            gh release create "$GITHUB_REF_NAME" "$TARBALL" \
+              --repo "$GITHUB_REPOSITORY" --verify-tag \
+              --title "$PACKAGE@$VERSION" --notes-file "$RUNNER_TEMP/release-notes.md" \
+              --latest=false "${args[@]}"
+          fi
+          if ! gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | grep -Fxq -- "$(basename "$TARBALL")"; then
+            gh release upload "$GITHUB_REF_NAME" "$TARBALL" --repo "$GITHUB_REPOSITORY"
+          fi

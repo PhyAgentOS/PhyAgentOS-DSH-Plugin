@@ -18,5 +18,14 @@
   },
   "scripts": {
     "build": "node -e \"console.log('cli is plain ESM')\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PhyAgentOS/dsh-PhyAgentOS.git",
+    "directory": "packages/cli"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
   }
 }
