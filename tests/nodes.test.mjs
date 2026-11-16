@@ -9,12 +9,14 @@ import { test } from 'node:test'
 
 import { NodeStore } from '../packages/core/lib/index.js'
 
+const arch = { x64: 'x86_64', arm64: 'aarch64', ia32: 'x86' }[process.arch] ?? process.arch
+
 const lock = {
   nodeId: 'demo',
-  artifactId: 'demo-0.1.0-linux-x86_64-tar-gz',
+  artifactId: `demo-0.1.0-${process.platform}-${arch}-tar-gz`,
   version: '0.1.0',
   platform: process.platform,
-  arch: process.arch === 'x64' ? 'x86_64' : process.arch,
+  arch,
   artifactType: 'executable_tar_gz',
   entrypoint: 'demo',
 }

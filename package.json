@@ -10,11 +10,16 @@
     "test": "pnpm build && node --test tests/*.test.mjs",
     "release:prepare": "node scripts/prepare-publish.mjs",
     "release:verify": "node scripts/verify-release.mjs",
-    "check:dsh": "node scripts/check-dsh-surface.mjs"
+    "check:dsh": "node scripts/check-dsh-surface.mjs",
+    "release:check": "node scripts/release.mjs check",
+    "release:pack": "node scripts/release.mjs pack",
+    "release:publish": "node scripts/release.mjs publish",
+    "release:smoke": "node scripts/smoke-install.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
     "esbuild": "^0.28.2",
+    "semver": "^7.8.6",
     "tar": "^7.5.22",
     "typescript": "5.9.3",
     "yaml": "^2.9.1"

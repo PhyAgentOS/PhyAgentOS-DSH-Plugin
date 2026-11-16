@@ -15,13 +15,20 @@ jobs:
           version: 11.28.5
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24.22.3
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm test
       - run: pnpm release:prepare
       - run: pnpm release:verify
-      - name: Install smoke test
+      - name: Check staged dependency version
         run: |
-          node -e "const p=require('./dist/publish/@x-era/dsh-forge/package.json'); if (p.dependencies['@x-era/dsh-forge-skill'] !== '0.1.0') process.exit(1)"
+          node -e "const p=require('./dist/publish/@x-era/dsh-forge/package.json'); const s=require('./packages/skill/package.json'); if (p.dependencies[s.name] !== s.version) process.exit(1)"
+      - name: Install npm tarballs in the supported DSH host
+        env:
+          DSH_HOME: ${{ runner.temp }}/forge-dsh-home
+          DSH_BIN: ${{ runner.temp }}/dsh-host/node_modules/.bin/dsh
+        run: |
+          npm install --prefix "$RUNNER_TEMP/dsh-host" --package-lock=false @deepseek-ai/dsh@0.2.2-rc.1
+          pnpm release:smoke

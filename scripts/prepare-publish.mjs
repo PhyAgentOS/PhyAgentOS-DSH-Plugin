@@ -37,8 +37,9 @@ for (const dir of packageDirs) {
   for (const sub of ['lib', 'bin']) {
     if (await exists(join(dir, sub))) await cp(join(dir, sub), join(target, sub), { recursive: true })
   }
+  await cp(join(root, 'LICENSE'), join(target, 'LICENSE'))
   await cp(join(dir, 'package.json'), join(target, 'package.json'))
-  if (await exists(join(dir, 'README.md'))) await cp(join(dir, 'README.md'), join(target, 'README.md'))
+  await cp(join(root, 'README.md'), join(target, 'README.md'))
   rewriteLinks(manifest, versions)
   manifest.publishConfig = { ...(manifest.publishConfig ?? {}), access: 'public' }
   await writeFile(join(target, 'package.json'), `${JSON.stringify(manifest, null, 2)}\n`)
@@ -47,8 +48,9 @@ for (const dir of packageDirs) {
 const bundleManifest = JSON.parse(await readFile(join(bundleDir, 'package.json'), 'utf8'))
 const target = join(out, bundleManifest.name)
 await mkdir(target, { recursive: true })
+await cp(join(root, 'LICENSE'), join(target, 'LICENSE'))
 await cp(join(bundleDir, 'cordis.patch.yml'), join(target, 'cordis.patch.yml'))
-if (await exists(join(bundleDir, 'README.md'))) await cp(join(bundleDir, 'README.md'), join(target, 'README.md'))
+await cp(join(root, 'README.md'), join(target, 'README.md'))
 bundleManifest.dependencies = Object.fromEntries(
   Object.entries(bundleManifest.dependencies ?? {}).map(([name]) => {
     const version = versions.get(name)
