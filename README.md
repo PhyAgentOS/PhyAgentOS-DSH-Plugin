@@ -2,108 +2,130 @@ English | [中文](https://github.com/PhyAgentOS/dsh-PhyAgentOS/blob/main/README
 
 # dsh-PhyAgentOS
 
-DeepSeek Harness (DSH) plugins and tools for installing, running and managing
-[Forge](https://github.com/PhyAgentOS/forge) skills. A skill combines a Dora
-dataflow, node artifacts and Gateway Tool APIs.
+DeepSeek Harness (DSH) plugins and tools for installing, running and managing [Forge](https://github.com/PhyAgentOS/forge) skills: Dora dataflows, node artifacts and Gateway Tool APIs.
 
-| Package | Purpose |
-| --- | --- |
-| `@x-era/forge-core` | Host-neutral manifests, registry, verified installation, node storage, runtime and Tool API client |
-| `@x-era/dsh-forge-skill` | DSH skill provider, management tools, configuration UI and built-in usage/development skills |
-| `@x-era/forge-cli` | `forge` shell command sharing the same home and state |
-| `@x-era/forge-mcp` | MCP stdio server exposing management and forwarding tools |
-| `@x-era/dsh-forge` | Installable DSH bundle that mounts the plugin |
+[User guide](https://github.com/PhyAgentOS/dsh-PhyAgentOS/blob/main/docs/usage_en.md) · [Release guide](https://github.com/PhyAgentOS/dsh-PhyAgentOS/blob/main/docs/releasing.md) · [npm packages](https://www.npmjs.com/org/x-era) · [GitHub Releases](https://github.com/PhyAgentOS/dsh-PhyAgentOS/releases) · [npm package management — maintainers](https://www.npmjs.com/settings/x-era/packages)
 
-## Install
+## Packages
 
-Use a supported DSH installation. The plugin packages require Node.js >=22;
-this repository's release workflow uses Node.js 24 and pnpm 11.28.5.
+All five packages are public on npm and support independent, tag-triggered releases through GitHub Actions trusted publishing.
+
+| Package | Purpose | Installed with the DSH bundle? |
+| --- | --- | --- |
+| [`@x-era/dsh-forge`](https://www.npmjs.com/package/@x-era/dsh-forge) | DSH bundle and plugin entry point | Yes |
+| [`@x-era/dsh-forge-skill`](https://www.npmjs.com/package/@x-era/dsh-forge-skill) | Skill provider, management tools and built-in instructions | Yes, dependency |
+| [`@x-era/forge-core`](https://www.npmjs.com/package/@x-era/forge-core) | Manifests, registry, verified installation, runtime and Tool API client | Yes, transitive dependency |
+| [`@x-era/forge-cli`](https://www.npmjs.com/package/@x-era/forge-cli) | Standalone `forge` command | No, optional |
+| [`@x-era/forge-mcp`](https://www.npmjs.com/package/@x-era/forge-mcp) | MCP stdio server for other agent clients | No, optional |
+
+The npm management page requires an npm account with organization permissions. Public package pages are available to consumers.
+
+## Quick start: DSH Web
+
+Use Node.js **>=24.9.0** for the tested DSH host. If `dsh` is not installed:
 
 ```sh
-dsh plugin --profile dev add @x-era/dsh-forge
-dsh --profile dev --dump-config
-dsh --profile dev
+node --version
+npm install --global @deepseek-ai/dsh@0.2.2-rc.1
+dsh --version
 ```
 
-Restart an already-running profile after installing the bundle. The composition
-should contain `forge-skill`; the running host should expose `forge-usage`,
-`forge-skill-development` and `forge_*` tools. The `dev` profile name is arbitrary.
-The CLI and MCP server are separate packages; installing the DSH bundle does not
-install global commands or the Dora runtime.
+Install into the profile you will launch:
+
+```sh
+dsh plugin --profile web add @x-era/dsh-forge
+dsh web
+```
+
+For a DSH source checkout, run these commands in the **deepseek-harness repository**:
+
+```sh
+pnpm dsh plugin --profile web add @x-era/dsh-forge
+pnpm dsh web
+```
+
+`dsh web` selects the `web` profile. Installing with `--profile dev` only affects `dev`; it does not enable the plugin in `web`. Restart an already-running profile after adding the bundle and open a new conversation.
+
+Expected capabilities: `forge-usage`, `forge-skill-development` and `forge_*` management tools. This installs the plugin, not a robot skill, Dora or hardware/model dependencies. See the [user guide](https://github.com/PhyAgentOS/dsh-PhyAgentOS/blob/main/docs/usage_en.md) for checks and configuration.
+
+Validation baselines: npm DSH `0.2.2-rc.1`; Web plugin registration also checked with a DSH `0.2.2-rc.2` source checkout.
+
+## Usage examples
+
+In DSH, ask for the operation directly:
+
+| Goal | Example request | Main tool |
+| --- | --- | --- |
+| Installed skills | “List installed Forge skills and their runtime states.” | `forge_skill_list` |
+| Available skills | “Search the Forge registry for robot simulation skills.” | `forge_skill_search` |
+| Choose a profile | “Inspect robot-control-sim and list its profiles and requirements.” | `forge_skill_inspect` after installation |
+| Install | “Install robot-control-sim with its nodes and report installation progress.” | `forge_skill_install`, `forge_install_status` |
+| Start simulation | “Check robot-control-sim / mujoco-piper, then start it if preflight passes.” | `forge_skill_doctor`, `forge_runtime_start` |
+| Read robot state | “Call sim.get_robot_info on the running robot-control-sim skill.” | `forge_tool_call` |
+| Stop | “Stop the robot-control-sim runtime and confirm its state.” | `forge_runtime_stop`, `forge_runtime_status` |
+
+The registry currently provides `robot-control-sim` / `mujoco-piper`. Inspect its current requirements and platform support before starting it.
+
+For a shell workflow, install the optional CLI first:
 
 ```sh
 npm install --global @x-era/forge-cli
 forge search robot
+forge list
+forge install robot-control-sim --wait
+forge inspect robot-control-sim
+forge doctor robot-control-sim --profile mujoco-piper
+# Continue only if the required binaries, environment and platform checks pass.
+forge start robot-control-sim mujoco-piper
+forge status robot-control-sim
+forge call robot-control-sim sim.get_robot_info
+forge stop robot-control-sim
 ```
 
-## Capabilities
-
-- Search, install, update and remove registry skills with digest/size validation,
-  resumable downloads and asynchronous installation of large node artifacts.
-- Preflight, materialization, Dora lifecycle, Gateway readiness and state reconciliation.
-- Forge 1 (Dora 0.4.x) and Forge 2 (Dora 1.x), with coordinator and isolated run modes.
-- Environment injection, invocation polling/cancellation, diagnostics and structured logs.
-- Built-in agent instructions for skill use and development.
+CLI output is JSON. Action/session acceptance is not completion: use `forge_invocation_read` in DSH/MCP to check an invocation; do not repeat an action with an unknown result. See [workflow details](https://github.com/PhyAgentOS/dsh-PhyAgentOS/blob/main/docs/usage_en.md#run-a-skill).
 
 ## Configuration
 
-Configure the `forge-skill` row in `$DSH_HOME/profiles/<name>/cordis.patch.yml`:
+Set the `forge-skill` row in `$DSH_HOME/profiles/web/cordis.patch.yml` (default home: `~/.dsh`):
 
 ```yaml
 - id: forge-skill
   config:
-    home: ~/.dsh/forge
     registry:
       url: https://paos-resource-platform.dev.x-era.com
+      tokenEnv: DSH_FORGE_REGISTRY_TOKEN
     runtime:
       dora: /path/to/dora
       dora1: /path/to/dora1
 ```
 
-`DSH_FORGE_HOME`, `DSH_FORGE_DORA` and `DSH_FORGE_DORA1` can supply paths.
-Use a reachable registry for your deployment and install the appropriate Dora
-CLI and skill-specific hardware/simulation prerequisites before starting a skill.
+Replace the executable paths with those required by your skill. `DSH_FORGE_HOME`, `DSH_FORGE_REGISTRY_URL`, `DSH_FORGE_DORA` and `DSH_FORGE_DORA1` provide environment defaults. See [configuration and data](https://github.com/PhyAgentOS/dsh-PhyAgentOS/blob/main/docs/usage_en.md#configuration-and-data) for precedence, authenticated registries and the optional console.
 
-## Develop from source
+## Develop and release
 
 ```sh
 git clone https://github.com/PhyAgentOS/dsh-PhyAgentOS.git
 cd dsh-PhyAgentOS
 pnpm install --frozen-lockfile
 pnpm test
-dsh plugin --profile dev add file:/absolute/path/to/dsh-PhyAgentOS/bundle
+dsh plugin --profile web add file:/absolute/path/to/dsh-PhyAgentOS/bundle
 ```
 
-Use the explicit `file:` form on DSH 0.2.2-rc.1 so the installed package uses
-the profile resolver for host-provided peers. Reinstall after rebuilding source.
-The repository does not include the DSH host. Compatibility baseline:
-`compat/dsh-baseline.json`. `DSH_CHECKOUT=/path/to/deepseek-harness pnpm check:dsh`
-detects changes in upstream interfaces; update the baseline only after reviewing
-the change and validating a real host. A hash change alone does not establish
-runtime incompatibility or compatibility.
+Use the explicit `file:` form and reinstall after rebuilding. The DSH host is a separate project. `DSH_CHECKOUT=/path/to/deepseek-harness pnpm check:dsh` checks the declared upstream API baseline; a changed hash alone does not establish runtime compatibility.
 
-## Release
+Release one package by updating its own manifest, merging a personal-fork PR into `main`, then creating its matching tag, such as `forge-cli/v0.1.2`. A new remote tag triggers tests, npm publishing and a GitHub Release with the tarball. Upload processing is polled every 15 seconds for up to approximately 15 minutes.
 
-Each package has an independent version and Git tag. For example,
-`forge-core/v0.1.0` publishes only core; `dsh-forge/v0.1.0` publishes only the bundle.
-Stable versions use npm `latest`; prereleases use `next`. Release checks require
-an exact tag checkout, a clean working tree, a matching manifest and published
-internal dependencies. The npm tarball records its source commit.
-After npm accepts an upload, the release waits up to approximately 15 minutes
-for public metadata instead of failing on a temporary 404.
-
-See the [release guide](https://github.com/PhyAgentOS/dsh-PhyAgentOS/blob/main/docs/releasing.md)
-for bootstrap, OIDC, independent releases and safe retry instructions.
+See the [release guide](https://github.com/PhyAgentOS/dsh-PhyAgentOS/blob/main/docs/releasing.md) for all five version files, tag naming, OIDC setup, GitHub-page steps and recovery. Maintainers can use [npm package management](https://www.npmjs.com/settings/x-era/packages).
 
 ## Documentation
 
-The existing detailed guides are in Chinese:
-[usage](https://github.com/PhyAgentOS/dsh-PhyAgentOS/blob/main/docs/usage.md),
-[deployment](https://github.com/PhyAgentOS/dsh-PhyAgentOS/blob/main/docs/deployment.md),
-[operations](https://github.com/PhyAgentOS/dsh-PhyAgentOS/blob/main/docs/operations.md),
-[security](https://github.com/PhyAgentOS/dsh-PhyAgentOS/blob/main/docs/security.md),
-[skill development](https://github.com/PhyAgentOS/dsh-PhyAgentOS/blob/main/docs/skill-development.md).
+| Guide | English | 中文 |
+| --- | --- | --- |
+| Installation, usage, CLI/MCP and troubleshooting | [User guide](https://github.com/PhyAgentOS/dsh-PhyAgentOS/blob/main/docs/usage_en.md) | [使用手册](https://github.com/PhyAgentOS/dsh-PhyAgentOS/blob/main/docs/usage.md) |
+| Independent releases, tags and npm authorization | [Release guide](https://github.com/PhyAgentOS/dsh-PhyAgentOS/blob/main/docs/releasing.md) | [发布手册](https://github.com/PhyAgentOS/dsh-PhyAgentOS/blob/main/docs/releasing_zh.md) |
+
+Additional guides in Chinese: [deployment](https://github.com/PhyAgentOS/dsh-PhyAgentOS/blob/main/docs/deployment.md) · [operations](https://github.com/PhyAgentOS/dsh-PhyAgentOS/blob/main/docs/operations.md) · [security](https://github.com/PhyAgentOS/dsh-PhyAgentOS/blob/main/docs/security.md) · [skill development](https://github.com/PhyAgentOS/dsh-PhyAgentOS/blob/main/docs/skill-development.md) · [portability](https://github.com/PhyAgentOS/dsh-PhyAgentOS/blob/main/docs/portability.md).
 
 ## License
 
-MIT. Published packages include `LICENSE`.
+MIT. See [LICENSE](https://github.com/PhyAgentOS/dsh-PhyAgentOS/blob/main/LICENSE).

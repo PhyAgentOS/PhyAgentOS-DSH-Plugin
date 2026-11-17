@@ -1,13 +1,17 @@
 # 运维手册
 
+[使用手册](usage.md) · [发布手册](releasing_zh.md) · [npm 包管理（维护者）](https://www.npmjs.com/settings/x-era/packages)
+
 ## 1. 日常检查
 
 ```sh
-node scripts/forge.mjs list          # 已安装 skill 与运行时状态
-node scripts/forge.mjs status        # 每个 skill 的运行状态
+forge list                         # 已安装 skill 与运行时状态
+forge status                       # 每个 skill 的运行状态
+forge search robot                 # registry 中可下载的 skill
+forge report                       # 导出诊断报告
 ```
 
-在 DSH 里对应 `forge_skill_list` / `forge_runtime_status`。配置台见 [deployment.md](deployment.md#6-配置界面ui)。
+独立 CLI 先安装 `npm install --global @x-era/forge-cli`。在 DSH 里对应 `forge_skill_list` / `forge_runtime_status`；可下载项用 `forge_skill_search`。配置台见 [deployment.md](deployment.md#6-配置界面ui)。
 
 ## 2. 日志与报告
 
@@ -31,24 +35,23 @@ node scripts/forge.mjs status        # 每个 skill 的运行状态
 **升级插件**
 
 ```sh
-dsh plugin --profile web remove @x-era/dsh-forge
-dsh plugin --profile web add @x-era/dsh-forge@0.2.0
+dsh plugin --profile web add @x-era/dsh-forge@latest
 # 重启该 profile（bundle 成员是启动边界）
 ```
 
-**回滚**：安装上一个版本号即可；已安装的 skill 是数据，不受插件版本影响。配置文件有备份，运行 `node scripts/forge.mjs list` 确认状态。
+**回滚**：选定已经公开且兼容的版本后，执行 `dsh plugin --profile web add @x-era/dsh-forge@<version>` 并重启对应宿主。先停止使用中的 runtime 并备份数据，按目标版本评估数据兼容性，不能假定任意旧版本都可读取新状态。配置文件有备份，运行 `forge list` 确认状态。
 
 **升级 skill**：`forge_skill_update {name, apply: true}`，或先查 `updateAvailable` 再决定。旧版本由安装器的 staging 机制替换，失败会回滚到原目录。
 
 ## 4. agent 引导
 
-插件随包注册两样东西，让模型知道什么时候用哪个工具：
+插件随包注册以下能力，让模型知道什么时候用哪个工具：
 
 - **`forge-usage` skill**：场景 → 工具对照表、安全规则、三条典型序列。模型按需加载，用户也可以 `/forge-usage` 直接调；
 - **`forge-skill-development` skill**：bundle 组成、dataflow/gateway 组织、节点打包、运行时启动顺序、本地迭代；开发/改包时加载；
 - **系统提示约定**（`forge-tools` section）：Look before acting、安装是 job、profile 先读后写、改完重启、未知结果不重试、失败先 doctor。
 
-两者都可用配置关闭：
+内置 skill 和提示段可分别通过配置关闭：
 
 ```yaml
 - id: forge-skill
@@ -57,6 +60,7 @@ dsh plugin --profile web add @x-era/dsh-forge@0.2.0
       usageSkill: false
       developmentSkill: false
       section: false
+      runtimeRules: false
 ```
 
 内容位于 `packages/skill/src/usage.ts`，与工具描述同源维护。
@@ -83,9 +87,9 @@ forge start <name> <profile>
 ## 6. 缓存与磁盘
 
 ```sh
-forge_cache_summary           # 每个节点的体积与总量
-forge_cache_gc {dry_run:true} # 先看会删什么
-forge_cache_gc                # 删除所有已安装 skill 不再引用的节点
+forge cache summary          # 每个节点的体积与总量
+forge cache gc --dry-run     # 先看会删什么
+forge cache gc               # 删除所有已安装 skill 不再引用的节点
 ```
 
 - 节点按 `artifact_id` 缓存，多个 skill 复用；
@@ -96,9 +100,10 @@ forge_cache_gc                # 删除所有已安装 skill 不再引用的节�
 
 | 现象 / 错误码 | 含义 | 处理 |
 |---|---|---|
+| Web 没有 Forge 工具 | 插件可能安装在别的 DSH profile | 确认 web 的依赖和 `forge-skill` 配置行，重启 Web 并新建对话，检查终端导入错误 |
 | `FORGE_MANIFEST_INVALID` | bundle 的 `skill.yaml` 不合法 | 重新安装；仍失败联系 skill 作者 |
 | `FORGE_PROFILE_UNKNOWN` | 请求的 profile 不存在 | `forge_skill_inspect` 看可用 profile |
-| `FORGE_DORA_MISSING` / `_VERSION` | dora 不在 PATH 或版本不符 | 安装 dora 0.4.1，或在配置里指定绝对路径 |
+| `FORGE_DORA_MISSING` / `_VERSION` | dora 不在 PATH 或版本不符 | 按 Forge 版本与 manifest 要求安装 Dora，或配置对应 `dora` / `dora1` 绝对路径 |
 | `FORGE_NODE_MISSING` | 节点未安装 | `forge_skill_install {name}` 重新装节点 |
 | `FORGE_NODE_PLATFORM` | 节点与本机平台不符 | 换 profile 或让作者发布对应平台 |
 | `FORGE_NODE_INTEGRITY` | 摘要/大小不符 | 删除该节点目录后重装 |
