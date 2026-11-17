@@ -1,6 +1,6 @@
 {
   "name": "@x-era/dsh-forge-skill",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Forge skill catalog for DeepSeek Harness: provider, management tools and doctor",
   "type": "module",
   "main": "lib/index.js",
