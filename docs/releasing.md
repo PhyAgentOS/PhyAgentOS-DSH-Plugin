@@ -144,6 +144,16 @@ npm exec --yes --package=@x-era/forge-cli -- forge --help
 
 ## Retry and diagnose
 
+After a successful `npm publish`, the script polls the exact version every
+15 seconds for up to approximately 15 minutes while npm processes it. Temporary
+404 responses show progress instead of failing the workflow. Once public, the
+version must still match the tag's source commit and tarball integrity. Only
+404 is retried; registry, network, authentication and integrity errors still fail.
+If the wait expires, check npm status and the account's notification email, then
+retry the same tag once the version is public. The wait never uploads again.
+This behavior applies to future tags containing this script; old tags keep
+their original release script when rerun.
+
 ```sh
 gh run list --repo PhyAgentOS/dsh-PhyAgentOS --workflow publish.yml --limit 10
 gh workflow run publish.yml --repo PhyAgentOS/dsh-PhyAgentOS --ref forge-core/v0.1.1
