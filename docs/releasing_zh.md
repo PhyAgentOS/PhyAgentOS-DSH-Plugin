@@ -128,6 +128,13 @@ npm exec --yes --package=@x-era/forge-cli -- forge --help
 
 ## 失败重试
 
+`npm publish` 成功后，脚本每 15 秒查询一次该精确版本，最多等待约 15 分钟。
+npm 处理期间的暂时 404 只输出等待进度，不会立即使流水线失败。版本公开后，
+仍须校验源码提交与 tarball 完整性。只有 404 会重试，其他接口、网络、认证或
+完整性错误仍然失败。超时后请检查 npm 服务状态和账号通知邮件，待版本公开后
+重跑同一 tag；等待过程不会再次上传包。
+此行为适用于包含新脚本的后续 tag；旧 tag 重跑时仍使用其原始发布脚本。
+
 ```sh
 gh run list --repo PhyAgentOS/dsh-PhyAgentOS --workflow publish.yml --limit 10
 gh workflow run publish.yml --repo PhyAgentOS/dsh-PhyAgentOS --ref forge-core/v0.1.1

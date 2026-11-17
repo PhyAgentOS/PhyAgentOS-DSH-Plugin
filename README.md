@@ -89,6 +89,8 @@ Each package has an independent version and Git tag. For example,
 Stable versions use npm `latest`; prereleases use `next`. Release checks require
 an exact tag checkout, a clean working tree, a matching manifest and published
 internal dependencies. The npm tarball records its source commit.
+After npm accepts an upload, the release waits up to approximately 15 minutes
+for public metadata instead of failing on a temporary 404.
 
 See the [release guide](https://github.com/PhyAgentOS/dsh-PhyAgentOS/blob/main/docs/releasing.md)
 for bootstrap, OIDC, independent releases and safe retry instructions.

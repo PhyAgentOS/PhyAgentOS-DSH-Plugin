@@ -5,6 +5,7 @@ import { spawnSync } from 'node:child_process'
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { setTimeout as delay } from 'node:timers/promises'
 import semver from 'semver'
 
 export const packages = {
@@ -82,6 +83,7 @@ async function pack(tag) {
 
 async function metadata(name, version) {
   const response = await fetch(`${registry}/${encodeURIComponent(name)}/${encodeURIComponent(version)}`, {
+    headers: { 'Cache-Control': 'no-cache' },
     signal: AbortSignal.timeout(30000),
   })
   if (response.status === 404) return undefined
@@ -94,6 +96,25 @@ export async function validateDependencies(manifest, lookup = metadata) {
     if (!name.startsWith('@x-era/')) continue
     if (semver.valid(version) !== version) throw new Error(`Internal release dependency must be exact: ${name}@${version}`)
     if (!await lookup(name, version)) throw new Error(`Publish dependency first: ${name}@${version}`)
+  }
+}
+
+export async function waitForPublished(release, {
+  lookup = metadata, sleep = delay, now = Date.now, timeoutMs = 15 * 60 * 1000,
+} = {}) {
+  const deadline = now() + timeoutMs
+  while (true) {
+    const published = await lookup(release.name, release.version)
+    if (published) {
+      validateExisting(release, published, release.integrity)
+      return
+    }
+    const remaining = deadline - now()
+    if (remaining <= 0) {
+      throw new Error(`Timed out waiting for ${release.name}@${release.version} after npm accepted the upload. Check npm status and account email; retry the same tag once the version is public.`)
+    }
+    console.log(`npm is processing ${release.name}@${release.version}; checking again in ${Math.min(15, Math.ceil(remaining / 1000))}s`)
+    await sleep(Math.min(15000, remaining))
   }
 }
 
@@ -113,10 +134,8 @@ async function publish(tag) {
     throw new Error(`Refusing to move latest backwards from ${latest.version} to ${release.version}`)
   }
   run('npm', ['publish', release.tarball, '--registry', registry, '--access', 'public', '--tag', channel], { stdio: 'inherit' })
-  // npm publication and GitHub release creation may be retried independently.
-  const published = await metadata(release.name, release.version)
-  if (!published) throw new Error('Published metadata is not visible yet; retry the same tag')
-  validateExisting(release, published, release.integrity)
+  // npm scans accepted uploads before making their metadata public.
+  await waitForPublished(release)
   return release
 }
 
