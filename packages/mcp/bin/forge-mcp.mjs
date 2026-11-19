@@ -47,6 +47,7 @@ const TOOLS = [
   tool('forge_node_info', 'Look up a locked node artifact and its source repository.', { artifact_id: str('Artifact id') }, ['artifact_id']),
   tool('forge_skill_doctor', 'Diagnose one skill.', { name: str('Skill name'), profile: str('Optional profile id') }, ['name']),
   tool('forge_doctor_report', 'Write a JSON diagnostics report for installed skills.', { name: str('Optional skill name') }, []),
+  tool('forge_environment_check', 'Check the local base environment for Forge: dora/dora1, Node, Python, data root, disk, registry, gateway ports.', { offline: bool('Skip the registry probe') }, []),
   tool('forge_runtime_start', 'Start a skill runtime for one profile and wait until ready.', { name: str('Skill name'), profile: str('Profile id'), mode: { type: 'string', enum: ['start', 'run'], description: 'start (coordinator) or run (isolated)' } }, ['name', 'profile']),
   tool('forge_runtime_status', 'Read runtime state for one skill.', { name: str('Skill name') }, ['name']),
   tool('forge_runtime_stop', 'Stop a skill runtime.', { name: str('Skill name'), force: bool('Force stop') }, ['name']),
@@ -86,6 +87,7 @@ async function dispatch(name, args) {
     case 'forge_node_info': return operations.nodeInfo(args.artifact_id)
     case 'forge_skill_doctor': return operations.doctor(args.name, args.profile)
     case 'forge_doctor_report': return operations.doctorReport(args.name)
+    case 'forge_environment_check': return operations.environmentCheck({ offline: args.offline === true })
     case 'forge_runtime_start': return operations.runtimeStart(args.name, args.profile, args.mode === 'run' ? 'run' : 'start')
     case 'forge_runtime_status': return operations.runtimeStatus(args.name)
     case 'forge_runtime_stop': return operations.runtimeStop(args.name, args.force === true)

@@ -446,6 +446,22 @@ export function registerForgeTools(ctx: Context, deps: ForgeToolDeps): Array<() 
     })),
 
     ctx.tools.register(defineTool({
+      name: 'forge_environment_check',
+      description: 'Check the local base environment for Forge before running any skill: Forge 1/2 dora CLIs and versions, Node/Python, data-root writability and free disk, registry reachability, the gateway ports installed skills declare, and DSH_FORGE_* variables. Use right after installing the plugin, or when a skill fails to start with FORGE_NODE_MISSING. Read-only; returns per-check FORGE_ENV_* codes with fix hints.',
+      parameters: {
+        offline: { type: 'boolean', description: 'Skip the registry probe (air-gapped machines)' },
+      },
+      output: objectOutput,
+      async execute(args: { offline?: boolean }) {
+        try {
+          return await ops.environmentCheck({ offline: args.offline === true })
+        } catch (error) {
+          return failure(error)
+        }
+      },
+    })),
+
+    ctx.tools.register(defineTool({
       name: 'forge_runtime_start',
       description: 'Start a Forge skill runtime (Dora dataflow) for one profile and wait until its Gateway reports readiness. mode=start (default) uses the coordinator; mode=run launches an isolated local process. May move real hardware when the skill is not a simulation profile.',
       parameters: {
