@@ -2,6 +2,12 @@ import { readdir, readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { ErrorCode } from './errors.js'
+import {
+  DEFAULT_FORGE_VERSION,
+  forgeGenerationLabel,
+  isForgeGeneration,
+  unsupportedForgeVersionDetail,
+} from './forge-version.js'
 import { parseManifest, type ForgeIssue, type ForgeManifest } from './manifest.js'
 
 /** A bundle that parsed cleanly and is therefore addressable. */
@@ -42,7 +48,7 @@ export interface ForgeInspection {
 const SAFE_NAME = /^[a-z0-9][a-z0-9-]*$/
 
 /** Forge runtime major implemented by this plugin (dora 0.4.1, artifact runtime). */
-export const SUPPORTED_FORGE_VERSION = '1'
+export { SUPPORTED_FORGE_VERSIONS } from './forge-version.js'
 
 /**
  * Read-only view over one or more skill roots.
@@ -123,13 +129,13 @@ export class ForgeCatalog {
 
     const document = join(dir, manifest.skillDocument)
     checks.push(await fileCheck('skill_document', document))
-    const forgeVersion = manifest.forgeVersion ?? '1'
+    const forgeVersion = manifest.forgeVersion ?? DEFAULT_FORGE_VERSION
     checks.push({
       id: 'forge_version',
-      status: forgeVersion === SUPPORTED_FORGE_VERSION ? 'pass' : 'fail',
-      detail: forgeVersion === SUPPORTED_FORGE_VERSION
-        ? `Forge ${forgeVersion}`
-        : `bundle targets Forge ${forgeVersion}; this build implements Forge ${SUPPORTED_FORGE_VERSION} (dora 0.4.1)`,
+      status: isForgeGeneration(forgeVersion) ? 'pass' : 'fail',
+      detail: isForgeGeneration(forgeVersion)
+        ? forgeGenerationLabel(forgeVersion)
+        : unsupportedForgeVersionDetail(forgeVersion),
     })
 
     for (const profile of Object.values(manifest.profiles)) {

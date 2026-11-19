@@ -14,6 +14,10 @@ export { exportPortableSkill } from './portable.js'
 export type { PortableExport } from './portable.js'
 export { EventLog } from './events.js'
 export { extractArchive } from './archive.js'
+export { packageSkill } from './package.js'
+export { installFromArchive } from './install.js'
+export type { LocalInstallOptions, LocalInstallResult } from './install.js'
+export type { PackageSkillOptions, PackageSkillResult } from './package.js'
 export { downloadFile } from './download.js'
 export type { DownloadOptions, DownloadProgress, DownloadResult } from './download.js'
 export { JobRunner } from './jobs.js'
@@ -25,6 +29,14 @@ export type { BundleIssue, BundleValidation } from './validate.js'
 export { diffValues } from './diff.js'
 export { diagnoseSkill } from './doctor.js'
 export type { Diagnosis, DiagnoseOptions } from './doctor.js'
+export {
+  DEFAULT_FORGE_VERSION,
+  forgeGenerationLabel,
+  isForgeGeneration,
+  SUPPORTED_FORGE_VERSIONS,
+  unsupportedForgeVersionDetail,
+} from './forge-version.js'
+export type { ForgeGeneration } from './forge-version.js'
 export { ForgeError, ErrorCode } from './errors.js'
 export type { ErrorCodeValue } from './errors.js'
 export { installSkill } from './install.js'

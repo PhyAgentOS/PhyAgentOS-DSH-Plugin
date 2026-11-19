@@ -3,7 +3,14 @@ import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import { test } from 'node:test'
 
-import { ForgeCatalog, parseManifest, toolsForProfile } from '../packages/core/lib/index.js'
+import {
+  ForgeCatalog,
+  SUPPORTED_FORGE_VERSIONS,
+  isForgeGeneration,
+  parseManifest,
+  toolsForProfile,
+  unsupportedForgeVersionDetail,
+} from '../packages/core/lib/index.js'
 
 const fixtures = fileURLToPath(new URL('../fixtures/skills', import.meta.url))
 
@@ -53,7 +60,7 @@ profiles:
 test('catalog lists valid bundles and keeps broken ones as diagnostics', async () => {
   const catalog = new ForgeCatalog(fixtures)
   const { skills, diagnostics } = await catalog.list()
-  assert.deepEqual(skills.map(skill => skill.name), ['broken-doc', 'env-probe', 'minimal-grasp'])
+  assert.deepEqual(skills.map(skill => skill.name), ['broken-doc', 'env-probe', 'forge2-minimal', 'minimal-grasp'])
   assert.deepEqual(diagnostics.map(diagnostic => diagnostic.name), ['broken-manifest'])
   assert.match(diagnostics[0].message, /manifest_version/)
 })
@@ -71,4 +78,26 @@ test('inspect passes for a complete bundle', async () => {
   const inspection = await catalog.inspect('minimal-grasp')
   assert.ok(inspection)
   assert.ok(inspection.checks.every(check => check.status !== 'fail'))
+})
+
+test('static inspect accepts every generation the runtime implements', async () => {
+  const catalog = new ForgeCatalog(fixtures)
+  for (const [name, label] of [['minimal-grasp', 'Forge 1'], ['forge2-minimal', 'Forge 2']]) {
+    const inspection = await catalog.inspect(name)
+    assert.ok(inspection, `${name} is in the catalog`)
+    const check = inspection.checks.find(entry => entry.id === 'forge_version')
+    assert.equal(check?.status, 'pass', `${name} forge_version pass`)
+    assert.match(check?.detail ?? '', new RegExp(label), `${name} detail names ${label}`)
+  }
+})
+
+test('generation helpers cover exactly the supported set', () => {
+  assert.deepEqual([...SUPPORTED_FORGE_VERSIONS], ['1', '2'])
+  assert.equal(isForgeGeneration('1'), true)
+  assert.equal(isForgeGeneration('2'), true)
+  assert.equal(isForgeGeneration('3'), false)
+  const detail = unsupportedForgeVersionDetail('3')
+  assert.match(detail, /Forge 3/)
+  assert.match(detail, /Forge 1 \(dora 0\.4\.1\)/)
+  assert.match(detail, /Forge 2 \(dora 1\.x/)
 })

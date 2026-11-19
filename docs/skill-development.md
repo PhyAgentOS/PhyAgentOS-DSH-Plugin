@@ -154,6 +154,25 @@ forge logs my-skill
 
 改 `SKILL.md` / `skill.yaml` 后目录会热更新；改 profile YAML 用 `forge_profile_write`（会校验+备份+diff），然后重启运行时。
 
+## 7.5 可移植性规则（强制）
+
+bundle 是分发单元，不是某台机器的运行现场。以下内容**不得**出现在 `skill.yaml`、`dataflow.yaml`、
+profile 配置、脚本或 `SKILL.md` 中：
+
+| 禁止 | 正确做法 |
+|---|---|
+| 主机绝对路径（`/home/...`、`/tmp/...`、某用户的仓库路径） | 节点 `path` 用 `${FORGE_RUNTIME_BIN}` / `${PAOS_SKILL_ROOT}`；配置用 `${PAOS_SKILL_ROOT}/profiles/<id>/x.yaml` |
+| 机器特有的解释器、venv、模型目录 | 由 `support/setup.sh` 在 bundle 内构建 `support/venv`；外部资源走 profile 的 `required_assets` |
+| 显示/设备相关的运行现场（`DISPLAY=:1`、窗口数量、某台相机序列号） | 由宿主环境或 profile 的 `required_environment` 提供，文档只写“需要图形显示” |
+| 本次运行观测数据（实测耗时、某次残差、当前网关端口） | 端口写在 `skill.yaml` 的 `gateway_url`；实测数据只进验收记录，不进 bundle |
+| 为特定 case 打的补丁（改死的参数、临时跳过、调试开关） | 参数进 profile 配置并提供默认值；调试改动在打包前回退 |
+
+判断标准：把 bundle 拷到另一台同架构、干净环境的机器上，`forge_skill_validate` → 安装 → 启动
+应当不需要改任何文件。做不到就说明有机器泄漏。
+
+`SKILL.md` 只描述契约：工具与路由、启动语义、环境要求、与上游版本的差异。它不描述某台机器的
+安装步骤，也不复述端口（端口是 `gateway_url` 的事实）。
+
 ## 8. 节点源码仓库从哪看
 
 - 注册表节点元数据里的 `github_url` → `forge_node_info {artifact_id}`（CLI：`forge node-info <artifact_id>`）；
