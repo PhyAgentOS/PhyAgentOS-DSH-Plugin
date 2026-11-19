@@ -57,6 +57,7 @@ pnpm dsh web
 | 目标 | 可以这样提问 | 主要工具 |
 | --- | --- | --- |
 | 查看已安装 skill | “列出本机已安装的 Forge skill，以及各自的运行状态。” | `forge_skill_list` |
+| 环境体检 | “刚装完插件，检查这台机器能不能跑 Forge（dora、Node、Python、数据根、磁盘、registry、端口）。” | `forge_environment_check` |
 | 查看可下载 skill | “搜索 Forge registry 中与机器人仿真有关的 skill。” | `forge_skill_search` |
 | 选择 profile | “查看 robot-control-sim 的可用 profile 和运行条件。” | 安装后使用 `forge_skill_inspect` |
 | 安装 skill | “安装 robot-control-sim 及其节点，并持续查询安装进度。” | `forge_skill_install`、`forge_install_status` |
@@ -74,6 +75,7 @@ forge search robot
 forge list
 forge install robot-control-sim --wait
 forge inspect robot-control-sim
+forge env
 forge doctor robot-control-sim --profile mujoco-piper
 # 仅在可执行文件、环境变量与平台检查通过后继续。
 forge start robot-control-sim mujoco-piper

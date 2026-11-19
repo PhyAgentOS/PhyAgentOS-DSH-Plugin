@@ -6,6 +6,7 @@ import { ForgeCatalog, type ForgeSkillEntry } from './catalog.js'
 import { diffValues } from './diff.js'
 import { validateBundle, type BundleValidation } from './validate.js'
 import { diagnoseSkill, type Diagnosis } from './doctor.js'
+import { checkEnvironment, type EnvironmentReport, type EnvironmentSkill } from './environment.js'
 import { EventLog } from './events.js'
 import { ForgeError } from './errors.js'
 import { packageSkill, type PackageSkillResult } from './package.js'
@@ -62,6 +63,8 @@ export class ForgeOperations {
   readonly events: EventLog
   private readonly callTimeoutMs: number
   private readonly onCatalogChange: (() => void) | undefined
+  private readonly dora: string | undefined
+  private readonly dora1: string | undefined
   private loaded: Promise<void> | undefined
 
   constructor(options: ForgeOperationsOptions) {
@@ -83,6 +86,8 @@ export class ForgeOperations {
     this.events = new EventLog(join(this.paths.runtime, 'logs', 'events.jsonl'), options.events !== false)
     this.callTimeoutMs = options.callTimeoutMs ?? 15000
     this.onCatalogChange = options.onCatalogChange
+    this.dora = options.dora
+    this.dora1 = options.dora1
   }
 
   private changed(): void {
@@ -379,6 +384,41 @@ export class ForgeOperations {
         diagnostics: listing.diagnostics.length,
       },
     }
+  }
+
+  // ---- environment -------------------------------------------------------
+
+  /**
+   * Base environment check that does not depend on one skill.
+   *
+   * Run it right after the plugin is installed ("can this machine run Forge at
+   * all?") and before blaming a skill for a failure that is really a missing
+   * dora CLI, an unwritable data root or a busy gateway port.
+   */
+  async environmentCheck(options: { offline?: boolean } = {}): Promise<EnvironmentReport> {
+    await this.ready()
+    const listing = await this.list()
+    const skills: EnvironmentSkill[] = []
+    for (const summary of listing.skills) {
+      const found = await this.find(summary.name)
+      const gatewayUrl = found?.entry.manifest.gatewayUrl
+      skills.push({ name: summary.name, ...(gatewayUrl === undefined ? {} : { gatewayUrl }) })
+    }
+    const report = await checkEnvironment({
+      home: this.paths.home,
+      dora: this.dora,
+      dora1: this.dora1,
+      registryUrl: this.registry.baseUrl,
+      skills,
+      ...(options.offline === true ? { offline: true } : {}),
+    })
+    void this.events.append('environment.check', {
+      ok: report.ok,
+      fail: report.summary.fail,
+      warn: report.summary.warn,
+      path: report.path ?? null,
+    })
+    return report
   }
 
   // ---- runtime -----------------------------------------------------------

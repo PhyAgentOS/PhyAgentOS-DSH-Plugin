@@ -29,6 +29,19 @@ export type { BundleIssue, BundleValidation } from './validate.js'
 export { diffValues } from './diff.js'
 export { diagnoseSkill } from './doctor.js'
 export type { Diagnosis, DiagnoseOptions } from './doctor.js'
+export { checkEnvironment, EnvironmentCode } from './environment.js'
+export type {
+  EnvironmentCheck,
+  EnvironmentCheckOptions,
+  EnvironmentCodeValue,
+  EnvironmentExec,
+  EnvironmentIsolation,
+  EnvironmentReport,
+  EnvironmentRuntime,
+  EnvironmentRuntimeContext,
+  EnvironmentRuntimeInstance,
+  EnvironmentSkill,
+} from './environment.js'
 export {
   DEFAULT_FORGE_VERSION,
   forgeGenerationLabel,

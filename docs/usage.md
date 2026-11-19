@@ -54,6 +54,7 @@ pnpm dsh web
 | Registry 有什么 skill | 搜索可安装的机器人仿真 skill，并列出返回的 profile。 | `forge_skill_search` |
 | 安装 | 安装 robot-control-sim 及节点，持续查询安装进度。 | `forge_skill_install`、`forge_install_status` |
 | 查看与检查 | 查看 robot-control-sim 的 profile、依赖和文档，诊断 mujoco-piper。 | `forge_skill_inspect`、`forge_skill_docs`、`forge_skill_doctor` |
+| 环境体检 | 刚装完插件，检查这台机器能不能跑：dora/dora1、Node、Python、数据根、磁盘、registry、端口。 | `forge_environment_check` |
 | 启动 | 检查通过后启动 robot-control-sim / mujoco-piper，并确认就绪状态。 | `forge_runtime_start`、`forge_runtime_status` |
 | 调用 | 调用运行中 skill 的 sim.get_robot_info，读取关节信息和限制。 | `forge_tool_context`、`forge_tool_call` |
 | 停止 | 停止 robot-control-sim 并确认状态。 | `forge_runtime_stop` |
@@ -110,6 +111,7 @@ CLI 默认输出 JSON，不需要额外添加 `--json`。
 | 查看 profile 文件 | `forge files <name> [profile]` |
 | 读取/写入 profile 文件 | `forge file-read <name> <profile> <file>`、`forge file-write <name> <profile> <file>`（新内容从 stdin 输入） |
 | 诊断 | `forge doctor <name> --profile <profile>` |
+| 环境体检（装完插件先跑） | `forge env [--offline]` |
 | 导出诊断报告 | `forge report [name]` |
 | 查看/清理未引用节点 | `forge cache summary`、`forge cache gc --dry-run`、`forge cache gc` |
 | 导出便携技能 | `forge export <name> --out <directory>` |

@@ -35,6 +35,7 @@ gateway per active skill. Use the forge_* tools instead of editing files by hand
 | read an async result | \`forge_invocation_read\` |
 | change tuning (control_hz, poses, frames…) | \`forge_profile_files\` → \`forge_profile_read\` → \`forge_profile_write\` |
 | diagnose why it will not run | \`forge_skill_doctor\`; full report with \`forge_doctor_report\` |
+| verify the machine can run Forge at all (right after installing the plugin) | \`forge_environment_check\` |
 | reclaim disk | \`forge_cache_summary\` then \`forge_cache_gc\` |
 | remove an installed skill | \`forge_skill_remove\` (stop the runtime first) |
 
@@ -87,9 +88,17 @@ forge_skill_search(robot)
 → forge_install_status(job_id) until state != running
 → forge_skill_doctor(robot-control-sim)
 \`\`\`
+
+**Verify the machine right after installing the plugin**
+
+\`\`\`
+forge_environment_check
+→ ok: report the pass/warn lines the user cares about (dora, node, disk, registry)
+→ fail: report the FORGE_ENV_* code and hint verbatim, fix it, then re-run once
+\`\`\`
 `
 
-export const USAGE_SYSTEM_SECTION = `Forge skills: use the forge_* tools rather than editing installed files. Call forge_skill_list/inspect before assuming a skill name or profile. profile files are changed only through forge_profile_read + forge_profile_write (full content; returns a diff and restartRequired), then restart the runtime. Installs are background jobs: poll forge_install_status. Action results are asynchronous: read forge_invocation_read and never retry an unknown outcome; real skills may move hardware. On failure report the FORGE_* code from forge_skill_doctor instead of retrying blindly. For creating, modifying, packaging or debugging a skill bundle, load the forge-skill-development skill; look up node repositories with forge_repo_search / forge_repo_info.`
+export const USAGE_SYSTEM_SECTION = `Forge skills: use the forge_* tools rather than editing installed files. Call forge_skill_list/inspect before assuming a skill name or profile. profile files are changed only through forge_profile_read + forge_profile_write (full content; returns a diff and restartRequired), then restart the runtime. Installs are background jobs: poll forge_install_status. Action results are asynchronous: read forge_invocation_read and never retry an unknown outcome; real skills may move hardware. On failure report the FORGE_* code from forge_skill_doctor instead of retrying blindly. For creating, modifying, packaging or debugging a skill bundle, load the forge-skill-development skill; look up node repositories with forge_repo_search / forge_repo_info. After the plugin is installed, or when the user asks whether this machine is ready, run forge_environment_check and report failing FORGE_ENV_* codes with their hints.`
 
 
 /**

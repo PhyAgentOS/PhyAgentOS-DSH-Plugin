@@ -59,6 +59,7 @@ try {
           'forge file-read <name> <profile> <file>',
           'forge file-write <name> <profile> <file>   (content on stdin)',
           'forge doctor <name> [--profile <id>]',
+          'forge env [--offline]                check dora/node/python/data root/registry/ports',
           'forge report [name]',
           'forge export <name> [--out <dir>]',
           'forge jobs [limit]',
@@ -217,6 +218,10 @@ try {
     }
     case 'report': {
       json({ ok: true, ...await operations.doctorReport(argv[0]) })
+      break
+    }
+    case 'env': {
+      json(await operations.environmentCheck({ offline: argv.includes('--offline') }))
       break
     }
     case 'export': {

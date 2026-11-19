@@ -7,11 +7,39 @@
 ```sh
 forge list                         # 已安装 skill 与运行时状态
 forge status                       # 每个 skill 的运行状态
+forge env                          # 基础环境体检：dora/dora1、Node/Python、数据根、磁盘、registry、端口
 forge search robot                 # registry 中可下载的 skill
 forge report                       # 导出诊断报告
 ```
 
-独立 CLI 先安装 `npm install --global @x-era/forge-cli`。在 DSH 里对应 `forge_skill_list` / `forge_runtime_status`；可下载项用 `forge_skill_search`。配置台见 [deployment.md](deployment.md#6-配置界面ui)。
+独立 CLI 先安装 `npm install --global @x-era/forge-cli`。在 DSH 里对应 `forge_skill_list` / `forge_runtime_status` / `forge_environment_check`（装完插件后的基础环境体检）；可下载项用 `forge_skill_search`。配置台见 [deployment.md](deployment.md#6-配置界面ui)。
+
+### 运行时隔离环境
+
+每个 flow 启动时都会在 `<home>/runtime/env/<skill>/<profile>/<hash>` 物化一份隔离环境。hash 由「skill 版本 + profile id + dataflow 文件内容」决定，同一 dataflow 复用同一目录，启动前整目录重建：
+
+```
+<home>/runtime/
+├── state.json                    # 每个 skill 的运行时记录（profile、flow、envDir、launch、dora、状态）
+├── env/<skill>/<profile>/<hash>/
+│   ├── bin/                      # 节点入口的符号链接（即 FORGE_RUNTIME_BIN）
+│   ├── launch/                   # skill 包副本：占位符已替换、dataflow 已注入 node 级 env
+│   └── runtime-lock.json         # skill/version/profile/binaries/artifacts 快照
+├── nodes/                        # 下载并校验过的节点制品
+├── logs/                         # <flow>.log、dora-coordinator.log、events.jsonl
+└── cache/、jobs/、reports/、dist/
+```
+
+注入变量（叠加在 `profile.environment` 之上，写进 dataflow 的 node 级 env）：`FORGE_RUNTIME_BIN`、`PAOS_SKILL_ROOT`、`PAOS_SKILL_NAME`、`PAOS_SKILL_VERSION`、`PAOS_RUNTIME_INSTANCE_ID`、`FORGE_FLOW_ID`。
+
+两种启动模式：
+
+- `start`（默认）：`dora up` + `dora start --detach`，flow 注册在 coordinator，按 flow 名停止；state 记录 `launch=start` 与所用 `dora`。
+- `run`：`dora run` 独立进程组，无 coordinator，state 记录 `pid`，停止时杀进程组。
+
+`forge env`（DSH 里 `forge_environment_check`）会把这段上下文写进报告：`runtime.stateFile`、`runtime.envRoot`、`runtime.instances[]`（envDir 是否存在、`runtime-lock.json` 摘要）、`runtime.envDirs`、`runtime.orphans`、`runtime.isolation`。对应告警码：孤儿环境目录 `FORGE_ENV_ENV_STALE`、记录丢失目录 `FORGE_ENV_ENV_MISSING`、`state.json` 损坏 `FORGE_ENV_RUNTIME_STATE_BROKEN`。
+
+`launch/` 是重建出来的副本：改配置请改 skill 源包里的 profile 文件后重启，不要手改这里。
 
 ## 2. 日志与报告
 
@@ -20,6 +48,7 @@ forge report                       # 导出诊断报告
 | `<home>/runtime/logs/events.jsonl` | 结构化事件：install.start/finish、runtime.start/stop、tool.call、doctor.run/report |
 | `<home>/runtime/jobs/<id>.json` | 安装/节点 job 的完整状态（phase、字节数、错误） |
 | `<home>/runtime/reports/doctor-*.json` | `forge_doctor_report` 导出的全量诊断 |
+| `<home>/runtime/reports/env-*.json` | `forge_environment_check` 导出的基础环境与运行时隔离上下文 |
 | `<home>/runtime/logs/<flow>.log` / `dora-coordinator.log` | Dora 与节点输出 |
 | `~/.dsh/profiles/<profile>/cordis.patch.yml.bak-*` | 配置台写回的备份 |
 | `<home>/runtime/backups/<ts>/` | skill profile 文件编辑的备份 |
@@ -103,7 +132,9 @@ forge cache gc               # 删除所有已安装 skill 不再引用的节点
 | Web 没有 Forge 工具 | 插件可能安装在别的 DSH profile | 确认 web 的依赖和 `forge-skill` 配置行，重启 Web 并新建对话，检查终端导入错误 |
 | `FORGE_MANIFEST_INVALID` | bundle 的 `skill.yaml` 不合法 | 重新安装；仍失败联系 skill 作者 |
 | `FORGE_PROFILE_UNKNOWN` | 请求的 profile 不存在 | `forge_skill_inspect` 看可用 profile |
-| `FORGE_DORA_MISSING` / `_VERSION` | dora 不在 PATH 或版本不符 | 按 Forge 版本与 manifest 要求安装 Dora，或配置对应 `dora` / `dora1` 绝对路径 |
+| `FORGE_NODE_MISSING`（detail 含 `dora`） | 启动前 preflight 失败：dora/dora1 不可运行、节点未装或平台不符、缺资产/环境变量、端口被占 | 先 `forge env` 定位；dora 类按行配置 `runtime.dora` / `runtime.dora1` 或 `DSH_FORGE_DORA` / `DSH_FORGE_DORA1`（0.4.1 / >=1.0.1,<2） |
+| `FORGE_DORA_MISSING` | `dora run` 或 coordinator 起不来（spawn 失败 / 未就绪） | `forge env` 确认 dora 可执行，再看 `<home>/runtime/logs` |
+| `FORGE_ENV_*` | 基础环境体检单项失败（dora/dora1、Node、Python、数据根、磁盘、registry、端口） | 按 `forge_environment_check` 返回的 hint 修复后重跑一次 |
 | `FORGE_NODE_MISSING` | 节点未安装 | `forge_skill_install {name}` 重新装节点 |
 | `FORGE_NODE_PLATFORM` | 节点与本机平台不符 | 换 profile 或让作者发布对应平台 |
 | `FORGE_NODE_INTEGRITY` | 摘要/大小不符 | 删除该节点目录后重装 |

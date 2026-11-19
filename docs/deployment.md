@@ -4,6 +4,33 @@
 
 先把组合包安装到实际启动的 DSH profile：Web 使用 `dsh plugin --profile web add @x-era/dsh-forge`，源码宿主在 deepseek-harness 仓库执行 `pnpm dsh plugin --profile web add @x-era/dsh-forge`。安装到 dev 不会启用在 web；新增组合包后重启对应宿主。
 
+## 0. 前置环境（装完插件先体检）
+
+新装插件后先跑一次环境体检，确认这台机器能起 Forge 运行时，而不是等到第一次 `start` 才在 preflight 里报错：
+
+```sh
+forge env                 # 独立 CLI
+# 或 DSH 对话里直接说：检查一下本机环境 / 装完插件能不能跑 → forge_environment_check
+```
+
+体检不依赖已安装的 skill。以本机参考环境为准：
+
+| 项 | 期望 | 失败码 |
+|---|---|---|
+| 平台 | `linux/x64`（节点制品按平台/架构发布；其他平台只告警） | `FORGE_ENV_PLATFORM_UNSUPPORTED` |
+| Node.js | ≥ 22（本机 `v24.22.1`） | `FORGE_ENV_NODE_VERSION` |
+| Forge 1 dora | `dora-cli 0.4.x`（基线 0.4.1） | `FORGE_ENV_DORA_MISSING` / `FORGE_ENV_DORA_VERSION` |
+| Forge 2 dora1 | `dora-cli >=1.0.1,<2` | `FORGE_ENV_DORA1_MISSING` / `FORGE_ENV_DORA1_VERSION` |
+| Python | ≥ 3.10（仅 Forge 2 源码节点需要；缺失只告警） | `FORGE_ENV_PYTHON_MISSING` / `FORGE_ENV_PYTHON_VERSION` |
+| 数据根 | `<home>` 可写（默认 `~/.dsh/forge`） | `FORGE_ENV_HOME_UNWRITABLE` |
+| 磁盘 | 空闲 ≥ 5 GiB（部署节点用；< 1 GiB 直接失败） | `FORGE_ENV_DISK_LOW` |
+| Registry | 在线安装需可达；离线机可加 `--offline` 跳过 | `FORGE_ENV_REGISTRY_UNREACHABLE` |
+| Gateway 端口 | 已装 skill 声明的 `gateway_url` 未被占用 | `FORGE_ENV_PORT_BUSY` |
+| 环境变量 | 只报告 `DSH_FORGE_*` 是否设置，永不打印值 | — |
+| 运行时隔离目录 | `<home>/runtime/env/<skill>/<profile>/<hash>`，每次 start 重建；体检会清点孤儿/缺失目录 | `FORGE_ENV_ENV_STALE` / `FORGE_ENV_ENV_MISSING` |
+
+dora 解析顺序：行配置 `runtime.dora` / `runtime.dora1` → `DSH_FORGE_DORA` / `DSH_FORGE_DORA1` → `<home>/support/bin/<name>`（存在即用）→ PATH 中的 `dora` / `dora1`。每次体检都会把完整 JSON 写到 `<home>/runtime/reports/env-<时间戳>.json`。
+
 ## 1. 配置在哪一层
 
 DSH 的"插件配置"不是插件目录里的配置文件，也不是设置界面，而是**配置树里那一行的 `config`**。forge 的行由组合包 `@x-era/dsh-forge` 插入，默认不带 config：

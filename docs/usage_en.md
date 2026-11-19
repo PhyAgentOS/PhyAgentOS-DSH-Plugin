@@ -54,6 +54,7 @@ Configure the model according to DSH's own instructions before model conversatio
 | Registry discovery | Search installable robot simulation skills and show their returned profiles. | `forge_skill_search` |
 | Install | Install robot-control-sim and its nodes, then report installation progress. | `forge_skill_install`, `forge_install_status` |
 | Inspect and diagnose | Inspect robot-control-sim, read its documentation and diagnose mujoco-piper. | `forge_skill_inspect`, `forge_skill_docs`, `forge_skill_doctor` |
+| Environment | Just installed the plugin: check whether this machine can run Forge (dora/dora1, Node, Python, data root, disk, registry, ports). | `forge_environment_check` |
 | Start | Start robot-control-sim / mujoco-piper after preflight succeeds and confirm readiness. | `forge_runtime_start`, `forge_runtime_status` |
 | Query | Call sim.get_robot_info on the running skill to read joints and limits. | `forge_tool_context`, `forge_tool_call` |
 | Stop | Stop robot-control-sim and confirm its final state. | `forge_runtime_stop` |
@@ -110,6 +111,7 @@ CLI output is JSON by default; no `--json` flag is needed.
 | List profile files | `forge files <name> [profile]` |
 | Read/write a profile file | `forge file-read <name> <profile> <file>`, `forge file-write <name> <profile> <file>` (new content on stdin) |
 | Diagnose | `forge doctor <name> --profile <profile>` |
+| Environment check (run right after installing) | `forge env [--offline]` |
 | Export a diagnostic report | `forge report [name]` |
 | Inspect/collect unused artifacts | `forge cache summary`, `forge cache gc --dry-run`, `forge cache gc` |
 | Export a portable skill | `forge export <name> --out <directory>` |

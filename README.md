@@ -57,6 +57,7 @@ In DSH, ask for the operation directly:
 | Goal | Example request | Main tool |
 | --- | --- | --- |
 | Installed skills | “List installed Forge skills and their runtime states.” | `forge_skill_list` |
+| Environment | “I just installed the plugin — check whether this machine can run Forge.” | `forge_environment_check` |
 | Available skills | “Search the Forge registry for robot simulation skills.” | `forge_skill_search` |
 | Choose a profile | “Inspect robot-control-sim and list its profiles and requirements.” | `forge_skill_inspect` after installation |
 | Install | “Install robot-control-sim with its nodes and report installation progress.” | `forge_skill_install`, `forge_install_status` |
@@ -70,6 +71,7 @@ For a shell workflow, install the optional CLI first:
 
 ```sh
 npm install --global @x-era/forge-cli
+forge env
 forge search robot
 forge list
 forge install robot-control-sim --wait
