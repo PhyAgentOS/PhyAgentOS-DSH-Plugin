@@ -8,6 +8,8 @@ import { validateBundle, type BundleValidation } from './validate.js'
 import { diagnoseSkill, type Diagnosis } from './doctor.js'
 import { EventLog } from './events.js'
 import { ForgeError } from './errors.js'
+import { packageSkill, type PackageSkillResult } from './package.js'
+import { installFromArchive, type LocalInstallResult } from './install.js'
 import { installSkill } from './install.js'
 import { JobRunner, type JobRecord } from './jobs.js'
 import { withLock } from './lock.js'
@@ -448,6 +450,42 @@ export class ForgeOperations {
   }
 
   /** Validate a bundle directory before installing it (local development). */
+  /**
+   * Package one installed skill bundle into a deterministic `tar.gz` under the
+   * forge home, returning the digest a lock file would record.
+   */
+  /**
+   * Install a locally built bundle archive (see `forge_skill_package`).
+   *
+   * Refuses to replace a skill whose runtime is active, and keeps the previous
+   * bundle under `<skills>/.backups/<name>/`. Node artifacts are not fetched:
+   * node builds are distributed through their own releases.
+   */
+  async installLocal(archivePath: string): Promise<LocalInstallResult> {
+    const running: string[] = []
+    for (const row of (await this.list()).skills) {
+      const state = await this.runtime.status(row.name)
+      if (state !== undefined && state.status !== 'stopped') running.push(row.name)
+    }
+    return installFromArchive(archivePath, { skillsRoot: this.paths.skills, running })
+  }
+
+  async packageSkill(
+    name: string,
+    options: { outputDir?: string; force?: boolean; includeVenv?: boolean } = {},
+  ): Promise<PackageSkillResult> {
+    const entry = await this.catalog.load(name)
+    if (entry === undefined) {
+      throw new ForgeError('FORGE_SKILL_NOT_FOUND', `skill "${name}" is not installed`)
+    }
+    return packageSkill({
+      bundleDir: entry.dir,
+      outputDir: options.outputDir ?? join(this.paths.runtime, 'dist'),
+      force: options.force === true,
+      includeVenv: options.includeVenv === true,
+    })
+  }
+
   validateLocalBundle(path: string): Promise<BundleValidation> {
     return validateBundle(path)
   }

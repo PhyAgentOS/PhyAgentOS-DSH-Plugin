@@ -129,6 +129,26 @@ list;
 "1"); the catalog exposes it as \`forge.forgeVersion\`; platform/arch use x86_64 / aarch64 (not Node's x64); artifacts.nodes.<id> pins artifact_id,
 version, platform, arch, artifact_type, entrypoint, sha256.
 
+### Portability rules (mandatory)
+
+A bundle is a distribution unit, not one machine's run directory. These must not appear in
+\`skill.yaml\`, \`dataflow.yaml\`, profile configs, scripts or \`SKILL.md\`:
+
+- host absolute paths (\`/home/...\`, \`/tmp/...\`): use \`\${FORGE_RUNTIME_BIN}\` or \`\${PAOS_SKILL_ROOT}\`,
+  and \`\${PAOS_SKILL_ROOT}/profiles/<id>/x.yaml\` for configs;
+- machine-specific interpreters, venvs or model directories: ship \`support/setup.sh\` that builds a
+  bundle-local venv, and declare external resources in \`profile.required_assets\`;
+- display/device run facts (\`DISPLAY=:1\`, window counts, serial numbers): the host or the profile's
+  \`required_environment\` owns them; documentation only states that a display is required;
+- one run's observations (measured durations, residuals, current port): ports live in
+  \`skill.yaml gateway_url\`; measurements belong in acceptance notes, not the bundle;
+- case patches (hard-coded values, temporary skips, debug switches): parameters belong in the profile
+  with defaults, and debug edits are reverted before packaging.
+
+Test: copy the bundle to another clean host of the same arch; validate, install and start must need no
+file edits. \`SKILL.md\` documents the contract (tools, routes, startup semantics, environment
+requirements, differences from upstream) and nothing about one machine's setup.
+
 ## 3. dataflow.yaml and gateway.yaml
 
     nodes:
@@ -246,7 +266,31 @@ dora-cli 0.4.1 with dora-message 0.7.0. Forge 2 skills require dora-cli >=1.0.1,
 READMEs should state production node count, direct tool role, endpoints/operations, HTTP API,
 binding and compatibility.
 
-## 8. Local development and install (no upload channel)
+## 8. Dependency policy: forge core packages come from PyPI
+
+The Forge libraries a node imports (\`forge-msgs\`, \`forge-common\`, \`forge-tool\`,
+\`forge-robot\`, \`forge-kinematics\`) are published on PyPI. A source-run bundle must
+**not** vendor the forge repository; let the package manager resolve them.
+
+Generation rule: **1.x serves Forge 1** (dora 0.4, forge-tool 1.x) and **2.x serves
+Forge 2** (dora 1.x, forge-tool 2.x). Which concrete version gets installed is
+whatever pip resolves from the nodes' declared ranges, not a number hard-coded in
+docs or scripts:
+
+- each node's \`pyproject.toml\` already declares its range (e.g. \`forge-msgs>=2.1,<3\`),
+  so installing the node editable pulls the matching generation;
+- only packages a node imports without declaring need an explicit line in
+  \`support/setup.sh\` (\`forge-kinematics\` is the common example for motion nodes);
+- clone the \`forge\` repository only to read or change framework code, never as a
+  dependency source; copying \`packages/*\` into a bundle duplicates upstream and
+  drifts silently;
+- \`dora-rs\` and \`dora-rs-cli\` are on PyPI too (\`dora-rs-cli\` provides the CLI,
+  \`dora-rs\` only the node API);
+- the venv stays outside the archive (\`support/setup.sh\` rebuilds it), so the first
+  build on a target machine needs PyPI access; an offline machine should mirror the
+  packages into an internal index rather than re-introduce a vendored copy.
+
+## 9. Local development and install (no upload channel)
 
 This forge has no publishing path: the client only reads the registry (\`GET /v1/skills\`,
 \`/v1/forge-nodes\`). Local bundles are distributed by copying them into the managed tree, and local
@@ -309,7 +353,43 @@ Port and display discipline: one skill+profile owns its gateway port. A second i
 profile must change the gateway port and DISPLAY, and \`dataflow.yaml\` gateway providers must agree with
 \`gateway.yaml\`.
 
-## 9. Troubleshooting matrix
+## 10. End-to-end verification goes through the DSH conversation
+
+Verify a skill **from the conversation with the forge tools**, not by handing the
+user a shell script. The tools are the same path a caller takes, they record
+invocation ids, and they keep the verification reproducible.
+
+    forge_runtime_start   {name, profile}          # expect status=healthy
+    forge_skill_doctor    {name, profile}          # dora + readiness + tool coverage
+    forge_tool_context    {name, tool_id}          # frames/units, readiness
+    forge_tool_call       {name, tool_id, arguments}   # query answers inline
+    forge_invocation_read {name, invocation_id}    # action status and result
+    forge_runtime_logs    {name, lines}
+    forge_runtime_stop    {name}
+
+Rules for an end-to-end run:
+
+- one Action at a time; read the terminal state with \`forge_invocation_read\`
+  before issuing the next call, never fire a batch and hope;
+- an Action's HTTP 202 / \`accepted\` is admission, not execution: only a terminal
+  phase plus the result body proves success;
+- record for every step: tool_id, arguments, error_code, message, elapsed, and
+  any \`final_*\` values, so a later comparison is factual;
+- a failed or \`unknown\` outcome is reported, not retried (see the runtime rules
+  shipped with this plugin);
+- when the operator prefers to drive the run themselves, deliver the sequence as
+  conversation content (user turn + the exact forge_* call + expected result) and
+  let them execute it: the verification is still expressed as forge tool calls,
+  never as a shell script;
+- \`curl\` against the gateway is a fallback for machines without DSH, not the
+  primary procedure: it duplicates the tool path and silently diverges from it.
+
+A representative sweep for a motion skill: describe the robot (\`get_robot_info\`),
+read the current observation (\`get_joint_state\` when the skill exposes it), issue
+theextreme target, then confirm the terminal judgement and re-read the observation to
+show the arm was left holding its measured pose.
+
+## 11. Troubleshooting matrix
 
 | Symptom | Layer | Evidence / action |
 |---|---|---|
@@ -331,7 +411,7 @@ profile must change the gateway port and DISPLAY, and \`dataflow.yaml\` gateway 
 Logs and reports: runtime/logs/events.jsonl (install/runtime/tool/doctor events), runtime/jobs/<id>.json,
 runtime/reports/doctor-*.json, runtime/logs/<flow>.log and dora-coordinator.log.
 
-## 10. Launch mode and Forge generation
+## 12. Launch mode and Forge generation
 
 Two independent axes:
 
@@ -351,7 +431,7 @@ from source locally.
 
 If a Forge 2 skill fails with "spawn dora1 ENOENT", configure runtime.dora1 or DSH_FORGE_DORA1.
 
-## 11. Where this forge differs from PhyAgentOS
+## 13. Where this forge differs from PhyAgentOS
 
 - no publishing/upload: the client only reads GET /v1/skills, /v1/skills/{name}, /v1/forge-nodes/{id};
   upstream external submissions are not open. Internal distribution: implement those GETs privately or
@@ -364,7 +444,7 @@ If a Forge 2 skill fails with "spawn dora1 ENOENT", configure runtime.dora1 or D
 - Forge 2 support is version-scoped: dora 1.x CLI, process-owned flows, no coordinator; the manifest
   still pins gateway_url and profiles the same way.
 
-## 12. References
+## 14. References
 
 Upstream: PhyAgentOS-core docs/user_development_guide/track_b/{SKILL_DEVELOPMENT, REPOSITORIES,
 PROTOCOLS, RUNTIME}.md. In forge: docs/skill-development.md, forge_skill_docs for bundle docs,

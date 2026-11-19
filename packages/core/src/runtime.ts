@@ -8,6 +8,12 @@ import { parseDocument } from 'yaml'
 
 import { ForgeCatalog, type ForgeCheck, type ForgeSkillEntry } from './catalog.js'
 import { ForgeError } from './errors.js'
+import {
+  DEFAULT_FORGE_VERSION,
+  forgeGenerationLabel,
+  isForgeGeneration,
+  unsupportedForgeVersionDetail,
+} from './forge-version.js'
 import type { ForgeProfile } from './manifest.js'
 import { forgePaths, type ForgePaths } from './paths.js'
 import { NodeStore } from './nodes.js'
@@ -95,7 +101,7 @@ export class SkillRuntimeManager {
 
   /** Pick the CLI by the bundle's declared Forge generation. */
   private doraFor(forgeVersion: string | undefined): string {
-    return (forgeVersion ?? '1') === '2' ? this.dora1 : this.dora
+    return (forgeVersion ?? DEFAULT_FORGE_VERSION) === '2' ? this.dora1 : this.dora
   }
 
   /** Load persisted state from disk (best effort). */
@@ -163,16 +169,14 @@ export class SkillRuntimeManager {
   /** Static dependency resolution: dora, binaries, assets, environment, port. */
   async preflight(entry: ForgeSkillEntry, profileId: string): Promise<PreflightResult> {
     const checks: RuntimeCheck[] = []
-    const forgeVersion = entry.manifest.forgeVersion ?? '1'
+    const forgeVersion = entry.manifest.forgeVersion ?? DEFAULT_FORGE_VERSION
     const dora = this.doraFor(forgeVersion)
     checks.push({
       id: 'forge_version',
-      status: forgeVersion === '1' || forgeVersion === '2' ? 'pass' : 'fail',
-      detail: forgeVersion === '2'
-        ? `Forge 2 (dora 1.x via ${dora})`
-        : forgeVersion === '1'
-          ? `Forge 1 (dora 0.4.1 via ${dora})`
-          : `unsupported Forge generation "${forgeVersion}"`,
+      status: isForgeGeneration(forgeVersion) ? 'pass' : 'fail',
+      detail: isForgeGeneration(forgeVersion)
+        ? `${forgeGenerationLabel(forgeVersion)} via ${dora}`
+        : unsupportedForgeVersionDetail(forgeVersion),
     })
     const profile = entry.manifest.profiles[profileId]
     if (profile === undefined) {
@@ -418,6 +422,13 @@ export class SkillRuntimeManager {
       filter: source => !/node_modules|\.git|(^|\/)nodes(\/|$)/.test(source),
     })
     await rewritePlaceholders(launch, '${FORGE_RUNTIME_BIN}', join(envDir, 'bin'))
+    // Dora renders neither PAOS_SKILL_* nor FORGE_FLOW_ID in node paths, so the
+    // materialized tree carries the same values the flow environment does.
+    await rewritePlaceholders(launch, '${PAOS_SKILL_ROOT}', entry.dir)
+    await rewritePlaceholders(launch, '${PAOS_SKILL_NAME}', entry.name)
+    await rewritePlaceholders(launch, '${PAOS_SKILL_VERSION}', entry.manifest.version)
+    await rewritePlaceholders(launch, '${PAOS_RUNTIME_INSTANCE_ID}', basename(envDir))
+    await rewritePlaceholders(launch, '${FORGE_FLOW_ID}', flow)
     await injectDataflowEnv(join(launch, profile.dataflow), {
       ...profile.environment,
       ...Object.fromEntries(profile.requiredEnvironment

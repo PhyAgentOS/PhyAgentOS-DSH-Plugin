@@ -35,7 +35,7 @@ test('forge 1 bundle preflight reports the dora 0.4.1 CLI', async () => {
   const version = checks.checks.find((check) => check.id === 'forge_version')
   const dora = checks.checks.find((check) => check.id === 'dora')
   assert.equal(version?.status, 'pass')
-  assert.match(version?.detail ?? '', /Forge 1 \(dora 0\.4\.1 via \/bin\/true\)/)
+  assert.match(version?.detail ?? '', /Forge 1 \(dora 0\.4\.1\) via \/bin\/true/)
   assert.match(dora?.detail ?? '', /\/bin\/true/)
 })
 
@@ -44,7 +44,7 @@ test('forge 2 bundle preflight uses dora1 and no longer fails on the generation'
   const version = checks.checks.find((check) => check.id === 'forge_version')
   const dora = checks.checks.find((check) => check.id === 'dora')
   assert.equal(version?.status, 'pass', 'forge 2 must be accepted by the runtime')
-  assert.match(version?.detail ?? '', /Forge 2 \(dora 1\.x via \/bin\/echo\)/)
+  assert.match(version?.detail ?? '', /Forge 2 \(dora 1\.x, forge-tool 2\.x\) via \/bin\/echo/)
   assert.match(dora?.detail ?? '', /\/bin\/echo/)
 })
 

@@ -1,0 +1,3 @@
+nodes:
+- id: gateway
+  path: ${PAOS_SKILL_ROOT}/support/bin/gateway

@@ -106,6 +106,23 @@ export function registerForgeTools(ctx: Context, deps: ForgeToolDeps): Array<() 
     })),
 
     ctx.tools.register(defineTool({
+      name: 'forge_skill_install_local',
+      description:
+        'Install a locally built skill bundle (the tar.gz written by forge_skill_package) or update an installed skill from it. Extracts to a staging directory, validates manifest and SKILL.md, refuses to replace a running skill, keeps the previous bundle under <skills>/.backups/<name>/, and swaps atomically. Node artifacts are not fetched here: nodes ship through their own releases.',
+      parameters: {
+        path: { type: 'string', required: true, description: 'Absolute path to the bundle tar.gz' },
+      },
+      output: objectOutput,
+      async execute(args: { path: string }) {
+        try {
+          return await ops.installLocal(args.path)
+        } catch (error) {
+          return failure(error)
+        }
+      },
+    })),
+
+    ctx.tools.register(defineTool({
       name: 'forge_install_status',
       description: 'Read one install job (phase, bytes, error) or the most recent jobs. Read-only.',
       parameters: {
@@ -241,6 +258,31 @@ export function registerForgeTools(ctx: Context, deps: ForgeToolDeps): Array<() 
       async execute(args: { name: string; profile: string; file: string; content: string }) {
         try {
           return { ok: true, ...await ops.profileWrite(args.name, args.profile, args.file, args.content) }
+        } catch (error) {
+          return failure(error)
+        }
+      },
+    })),
+
+    ctx.tools.register(defineTool({
+      name: 'forge_skill_package',
+      description:
+        'Package one installed skill bundle into a deterministic tar.gz (sorted entries, pinned timestamps/ownership, sha256 sidecar, archive-manifest.json). Writes under the forge home by default; reports the digest a node/skill lock would record. Node binaries are distributed through their own releases, not here.',
+      parameters: {
+        name: { type: 'string', required: true, description: 'Installed skill name to package' },
+        output_dir: { type: 'string', description: 'Destination directory; defaults to <forge home>/runtime/dist' },
+        force: { type: 'boolean', description: 'Replace an existing archive of the same name/version' },
+        include_venv: { type: 'boolean', description: 'Ship venv trees too (off by default: they embed absolute paths)' },
+      },
+      output: objectOutput,
+      async execute(args: { name: string; output_dir?: string; force?: boolean; include_venv?: boolean }) {
+        try {
+          const result = await ops.packageSkill(args.name, {
+            ...(args.output_dir === undefined ? {} : { outputDir: args.output_dir }),
+            ...(args.force === undefined ? {} : { force: args.force }),
+            ...(args.include_venv === undefined ? {} : { includeVenv: args.include_venv }),
+          })
+          return result
         } catch (error) {
           return failure(error)
         }

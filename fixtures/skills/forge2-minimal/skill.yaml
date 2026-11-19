@@ -1,0 +1,14 @@
+forge_version: "2"
+manifest_version: 2
+name: forge2-minimal
+version: 0.1.0
+description: "Forge 2 fixture: source-run nodes, no artifact locks."
+skill_document: SKILL.md
+gateway_url: http://127.0.0.1:19101
+profiles:
+  default:
+    dataflow: profiles/default/dataflow.yaml
+    required_binaries: []
+    required_assets: []
+    required_environment: []
+    environment: {}
