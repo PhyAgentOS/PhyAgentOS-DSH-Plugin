@@ -1,6 +1,6 @@
 {
   "name": "@x-era/forge-mcp",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "MCP stdio server exposing Forge skill management tools to any agent host",
   "type": "module",
   "bin": {

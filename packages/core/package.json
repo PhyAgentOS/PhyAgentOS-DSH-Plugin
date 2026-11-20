@@ -1,6 +1,6 @@
 {
   "name": "@x-era/forge-core",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Host-neutral core for Forge skill management: manifest parsing, catalog and paths",
   "type": "module",
   "main": "lib/index.js",
@@ -18,8 +18,8 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "yaml": "^2.8.1",
-    "tar": "^7.5.2"
+    "tar": "^7.5.2",
+    "yaml": "^2.8.1"
   },
   "scripts": {
     "build": "tsc -p ."
