@@ -31,7 +31,7 @@ export function validateManifest(release, manifest) {
   if (manifest.name !== release.name || manifest.version !== release.version || manifest.private) {
     throw new Error(`Tag must match the publishable manifest: ${release.name}@${release.version}`)
   }
-  if (manifest.repository?.url !== 'git+https://github.com/PhyAgentOS/dsh-PhyAgentOS.git') {
+  if (manifest.repository?.url !== 'git+https://github.com/PhyAgentOS/PhyAgentOS-DSH-Plugin.git') {
     throw new Error('Missing or incorrect public repository metadata')
   }
 }

@@ -14,7 +14,8 @@ import {
   isForgeGeneration,
   unsupportedForgeVersionDetail,
 } from './forge-version.js'
-import type { ForgeProfile } from './manifest.js'
+import { modelsForProfile, type ForgeProfile } from './manifest.js'
+import { ModelStore } from './models.js'
 import { forgePaths, type ForgePaths } from './paths.js'
 import { NodeStore } from './nodes.js'
 import type { ForgeRegistryClient } from './registry.js'
@@ -50,10 +51,13 @@ export interface PreflightResult {
   readonly ok: boolean
   readonly checks: readonly RuntimeCheck[]
   readonly binaries: Readonly<Record<string, string>>
+  readonly modelEnv?: Readonly<Record<string, string>>
 }
 
 export interface RuntimeManagerOptions {
   readonly home: string
+  /** Optional override for the shared models root; defaults to `<home>/models`. */
+  readonly modelsRoot?: string | undefined
   readonly catalog: ForgeCatalog
   readonly registry: ForgeRegistryClient
   /** Forge 1 dora CLI (default 0.4.1): path or command name. */
@@ -71,6 +75,7 @@ export interface RuntimeManagerOptions {
 export class SkillRuntimeManager {
   readonly paths: ForgePaths
   readonly nodes: NodeStore
+  readonly models: ModelStore
   private readonly options: RuntimeManagerOptions
   private readonly states = new Map<string, RuntimeState>()
 
@@ -80,8 +85,9 @@ export class SkillRuntimeManager {
 
   constructor(options: RuntimeManagerOptions) {
     this.options = options
-    this.paths = forgePaths(options.home)
+    this.paths = forgePaths(options.home, options.modelsRoot)
     this.nodes = new NodeStore(this.paths.nodes, options.registry, join(this.paths.runtime, 'cache'))
+    this.models = new ModelStore(this.paths.models)
     const supportBin = join(this.paths.home, 'support', 'bin')
     const localDora = join(supportBin, 'dora')
     const localDora1 = join(supportBin, 'dora1')
@@ -218,7 +224,28 @@ export class SkillRuntimeManager {
       checks.push(await existsCheck(`asset.${asset}`, path))
     }
 
-    const missingEnv = profile.requiredEnvironment.filter(name => (process.env[name] ?? profile.environment[name]) === undefined)
+    const modelEnv: Record<string, string> = {}
+    for (const req of modelsForProfile(entry.manifest, profileId)) {
+      const status = await this.models.resolveRequirement(req)
+      if (status.path !== undefined && req.env !== undefined && status.state !== 'missing' && status.state !== 'mismatch') {
+        modelEnv[req.env] = status.path
+      }
+      if (status.state === 'ready') {
+        checks.push({ id: `model.${req.id}`, status: 'pass', detail: status.detail })
+      } else if (status.state === 'unverified') {
+        checks.push({ id: `model.${req.id}`, status: 'warn', detail: status.detail })
+      } else {
+        checks.push({
+          id: `model.${req.id}`,
+          status: status.optional ? 'warn' : 'fail',
+          detail: status.detail,
+        })
+      }
+    }
+
+    const missingEnv = profile.requiredEnvironment.filter(
+      name => (process.env[name] ?? profile.environment[name] ?? modelEnv[name]) === undefined,
+    )
     checks.push({
       id: 'environment',
       status: missingEnv.length === 0 ? 'pass' : 'fail',
@@ -238,7 +265,7 @@ export class SkillRuntimeManager {
       })
     }
 
-    return { ok: checks.every(check => check.status !== 'fail'), checks, binaries }
+    return { ok: checks.every(check => check.status !== 'fail'), checks, binaries, modelEnv }
   }
 
   /** Start one skill/profile pair and wait for the gateway to be healthy. */
@@ -277,8 +304,9 @@ export class SkillRuntimeManager {
     const dora = this.doraFor(forgeVersion)
     const launch = options.launch ?? 'start'
     const flow = `forge-${slug(skill)}-${slug(profileId)}-${Date.now().toString(36)}`
+    const modelEnv = preflight.modelEnv ?? {}
     // Materialize for both launch modes: Forge 1 dataflows reference ${FORGE_RUNTIME_BIN}.
-    const envDir = await this.materialize(entry, profile, binaries, flow)
+    const envDir = await this.materialize(entry, profile, binaries, flow, modelEnv)
     const gatewayUrl = entry.manifest.gatewayUrl
     const state: RuntimeState = {
       skill,
@@ -299,12 +327,12 @@ export class SkillRuntimeManager {
 
     try {
       if (launch === 'run') {
-        state.pid = await this.spawnRun(dora, entry, profile, flow, envDir)
+        state.pid = await this.spawnRun(dora, entry, profile, flow, envDir, modelEnv)
       } else {
         await this.ensureCoordinator(dora, envDir)
         await execFileAsync(dora, [
           'start', join(envDir, 'launch', profile.dataflow), '--name', flow, '--detach',
-        ], { cwd: join(envDir, 'launch', dirname(profile.dataflow)), env: this.flowEnv(entry, profile, envDir), timeout: 60000 })
+        ], { cwd: join(envDir, 'launch', dirname(profile.dataflow)), env: this.flowEnv(entry, profile, envDir, modelEnv), timeout: 60000 })
       }
 
       await this.waitForGateway(gatewayUrl)
@@ -322,7 +350,14 @@ export class SkillRuntimeManager {
   }
 
   /** Launch a flow with `dora run`: no coordinator, process-owned. */
-  private async spawnRun(dora: string, entry: ForgeSkillEntry, profile: ForgeProfile, flow: string, envDir: string): Promise<number> {
+  private async spawnRun(
+    dora: string,
+    entry: ForgeSkillEntry,
+    profile: ForgeProfile,
+    flow: string,
+    envDir: string,
+    modelEnv: Readonly<Record<string, string>> = {},
+  ): Promise<number> {
     const dataflow = join(envDir, 'launch', profile.dataflow)
     await mkdir(this.paths.logs, { recursive: true })
     const logPath = join(this.paths.logs, `${flow}.log`)
@@ -330,7 +365,7 @@ export class SkillRuntimeManager {
     try {
       const child = spawn(dora, ['run', dataflow], {
         cwd: dirname(dataflow),
-        env: this.flowEnv(entry, profile, envDir),
+        env: this.flowEnv(entry, profile, envDir, modelEnv),
         detached: true,
         stdio: ['ignore', fd, fd],
       })
@@ -403,7 +438,13 @@ export class SkillRuntimeManager {
     }
   }
 
-  private async materialize(entry: ForgeSkillEntry, profile: ForgeProfile, binaries: Readonly<Record<string, string>>, flow: string): Promise<string> {
+  private async materialize(
+    entry: ForgeSkillEntry,
+    profile: ForgeProfile,
+    binaries: Readonly<Record<string, string>>,
+    flow: string,
+    modelEnv: Readonly<Record<string, string>> = {},
+  ): Promise<string> {
     const hash = createHash('sha256')
       .update(entry.manifest.version)
       .update(profile.id)
@@ -422,6 +463,7 @@ export class SkillRuntimeManager {
       filter: source => !/node_modules|\.git|(^|\/)nodes(\/|$)/.test(source),
     })
     await rewritePlaceholders(launch, '${FORGE_RUNTIME_BIN}', join(envDir, 'bin'))
+    await rewritePlaceholders(launch, '${FORGE_MODELS_DIR}', this.paths.models)
     // Dora renders neither PAOS_SKILL_* nor FORGE_FLOW_ID in node paths, so the
     // materialized tree carries the same values the flow environment does.
     await rewritePlaceholders(launch, '${PAOS_SKILL_ROOT}', entry.dir)
@@ -430,11 +472,13 @@ export class SkillRuntimeManager {
     await rewritePlaceholders(launch, '${PAOS_RUNTIME_INSTANCE_ID}', basename(envDir))
     await rewritePlaceholders(launch, '${FORGE_FLOW_ID}', flow)
     await injectDataflowEnv(join(launch, profile.dataflow), {
+      ...modelEnv,
       ...profile.environment,
       ...Object.fromEntries(profile.requiredEnvironment
         .filter(name => profile.environment[name] === undefined && process.env[name] !== undefined)
         .map(name => [name, process.env[name] as string])),
       FORGE_RUNTIME_BIN: join(envDir, 'bin'),
+      FORGE_MODELS_DIR: this.paths.models,
       PAOS_SKILL_ROOT: entry.dir,
       PAOS_SKILL_NAME: entry.name,
       PAOS_SKILL_VERSION: entry.manifest.version,
@@ -446,17 +490,26 @@ export class SkillRuntimeManager {
       version: entry.manifest.version,
       profile: profile.id,
       binaries,
+      modelsRoot: this.paths.models,
+      modelEnv,
       artifacts: Object.fromEntries(Object.entries(entry.manifest.artifacts).map(([key, value]) => [key, value.artifactId])),
     }, null, 2))
     await mkdir(this.paths.logs, { recursive: true })
     return envDir
   }
 
-  private flowEnv(entry: ForgeSkillEntry, profile: ForgeProfile, envDir: string): NodeJS.ProcessEnv {
+  private flowEnv(
+    entry: ForgeSkillEntry,
+    profile: ForgeProfile,
+    envDir: string,
+    modelEnv: Readonly<Record<string, string>> = {},
+  ): NodeJS.ProcessEnv {
     return {
+      ...modelEnv,
       ...process.env,
       ...profile.environment,
       FORGE_RUNTIME_BIN: join(envDir, 'bin'),
+      FORGE_MODELS_DIR: this.paths.models,
       PAOS_SKILL_ROOT: entry.dir,
       PAOS_SKILL_NAME: entry.name,
       PAOS_SKILL_VERSION: entry.manifest.version,

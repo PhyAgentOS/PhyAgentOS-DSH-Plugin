@@ -60,12 +60,19 @@ try {
           'forge file-write <name> <profile> <file>   (content on stdin)',
           'forge doctor <name> [--profile <id>]',
           'forge env [--offline]                check dora/node/python/data root/registry/ports',
+          'forge setup [--dry-run] [--only dora,dora1] [--index-url <url>] [--force] [--write-config] [--profile <p>]',
+          'forge config [profile]               read forge-skill row in cordis.patch.yml + backups',
+          'forge config-set <json> [--profile <p>] [--replace]',
+          'forge config-restore <backup> [--profile <p>]',
           'forge report [name]',
           'forge export <name> [--out <dir>]',
           'forge jobs [limit]',
           'forge job <id>',
           'forge cancel <id>',
           'forge cache summary|gc [--dry-run]',
+          'forge models [query] [--id <id>] [--tag <tag>] [--skill <name>]',
+          'forge model <id> [revision]',
+          'forge model-verify <id> [revision]',
         ],
         home,
         modes: {
@@ -224,6 +231,50 @@ try {
       json(await operations.environmentCheck({ offline: argv.includes('--offline') }))
       break
     }
+    case 'setup': {
+      const readFlag = (flag) => {
+        const idx = argv.indexOf(flag)
+        return idx >= 0 ? argv[idx + 1] : undefined
+      }
+      const onlyRaw = readFlag('--only')
+      const components = onlyRaw === undefined ? undefined : onlyRaw.split(',').map(item => item.trim()).filter(Boolean)
+      const result = await operations.environmentSetup({
+        dryRun: argv.includes('--dry-run'),
+        components,
+        doraVersion: readFlag('--dora-version'),
+        dora1Version: readFlag('--dora1-version'),
+        doraBinaryPath: readFlag('--dora-bin'),
+        dora1BinaryPath: readFlag('--dora1-bin'),
+        python: readFlag('--python'),
+        indexUrl: readFlag('--index-url'),
+        force: argv.includes('--force'),
+        writeProfileConfig: argv.includes('--write-config'),
+        profile: readFlag('--profile'),
+        offline: argv.includes('--offline'),
+      })
+      json(result, result.ok ? 0 : 1)
+      break
+    }
+    case 'config': {
+      json({ ok: true, ...await operations.configRead(argv[0]) })
+      break
+    }
+    case 'config-set': {
+      const idx = argv.indexOf('--profile')
+      const profile = idx >= 0 ? argv[idx + 1] : undefined
+      const replace = argv.includes('--replace')
+      const rawJson = argv.find((item, i) => !item.startsWith('--') && (idx < 0 || i !== idx + 1))
+      const parsed = JSON.parse(requireArg(rawJson, 'config-set <json> [--profile <p>] [--replace]'))
+      json({ ok: true, ...await operations.configWrite(profile, parsed, { merge: !replace }) })
+      break
+    }
+    case 'config-restore': {
+      const idx = argv.indexOf('--profile')
+      const profile = idx >= 0 ? argv[idx + 1] : undefined
+      const backup = argv.find((item, i) => !item.startsWith('--') && (idx < 0 || i !== idx + 1))
+      json({ ok: true, ...await operations.configRestore(profile, requireArg(backup, 'config-restore <backup> [--profile <p>]')) })
+      break
+    }
     case 'export': {
       const index = argv.indexOf('--out')
       const out = index >= 0 ? argv[index + 1] : join(home, 'portable')
@@ -248,6 +299,43 @@ try {
       } else {
         json({ ok: true, ...await operations.cacheSummary() })
       }
+      break
+    }
+    case 'models': {
+      const readFlag = (flag) => {
+        const idx = argv.indexOf(flag)
+        return idx >= 0 ? argv[idx + 1] : undefined
+      }
+      const id = readFlag('--id')
+      const tag = readFlag('--tag')
+      const skill = readFlag('--skill')
+      const positional = []
+      for (let i = 0; i < argv.length; i += 1) {
+        if (argv[i] === '--id' || argv[i] === '--tag' || argv[i] === '--skill') {
+          i += 1
+          continue
+        }
+        positional.push(argv[i])
+      }
+      const query = positional.join(' ').trim()
+      json({
+        ok: true,
+        ...await operations.modelSearch({
+          ...(query.length === 0 ? {} : { query }),
+          ...(id === undefined ? {} : { id }),
+          ...(tag === undefined ? {} : { tag }),
+          ...(skill === undefined ? {} : { skill }),
+        }),
+      })
+      break
+    }
+    case 'model': {
+      json({ ok: true, ...await operations.modelInfo(requireArg(argv[0], 'model <id> [revision]'), argv[1]) })
+      break
+    }
+    case 'model-verify': {
+      const result = await operations.modelVerify(requireArg(argv[0], 'model-verify <id> [revision]'), argv[1])
+      json(result, result.ok ? 0 : 1)
       break
     }
     default:

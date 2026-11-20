@@ -21,7 +21,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/PhyAgentOS/dsh-PhyAgentOS.git",
+    "url": "git+https://github.com/PhyAgentOS/PhyAgentOS-DSH-Plugin.git",
     "directory": "packages/mcp"
   },
   "publishConfig": {

@@ -2,7 +2,7 @@
 
 # npm 独立发布手册
 
-[发布工作流](../.github/workflows/publish.yml) · [Actions](https://github.com/PhyAgentOS/dsh-PhyAgentOS/actions/workflows/publish.yml) · [GitHub Releases](https://github.com/PhyAgentOS/dsh-PhyAgentOS/releases) · [npm 包管理](https://www.npmjs.com/settings/x-era/packages)
+[发布工作流](../.github/workflows/publish.yml) · [Actions](https://github.com/PhyAgentOS/PhyAgentOS-DSH-Plugin/actions/workflows/publish.yml) · [GitHub Releases](https://github.com/PhyAgentOS/PhyAgentOS-DSH-Plugin/releases) · [npm 包管理](https://www.npmjs.com/settings/x-era/packages)
 
 ## 当前发布方式与版本文件
 
@@ -62,7 +62,7 @@ git tag forge-cli/v0.1.2
 git push origin refs/tags/forge-cli/v0.1.2
 ```
 
-确认打印的版本确实为 `0.1.2` 后再打 tag。这里 `origin` 指向上游 `PhyAgentOS/dsh-PhyAgentOS`。只有本地 tag 不会触发流水线；新 tag 到达远端后才触发。合并 PR 或普通 main 推送不发布 npm。
+确认打印的版本确实为 `0.1.2` 后再打 tag。这里 `origin` 指向上游 `PhyAgentOS/PhyAgentOS-DSH-Plugin`。只有本地 tag 不会触发流水线；新 tag 到达远端后才触发。合并 PR 或普通 main 推送不发布 npm。
 
 工作流校验当前提交就是 tag 提交、工作区干净、包版本和仓库元数据匹配，并确认提交属于 `origin/main`，随后测试并仅发布该包。正式版本用 `latest`；如 `forge-cli/v0.2.0-rc.1` 的预发布用 `next`。不接受 build metadata，也不允许将正式版 `latest` 降级。
 
@@ -74,11 +74,11 @@ git push origin refs/tags/forge-cli/v0.1.2
 
 ### 4. 检查结果
 
-先看 [Actions](https://github.com/PhyAgentOS/dsh-PhyAgentOS/actions/workflows/publish.yml)，再查 npm 精确版本：
+先看 [Actions](https://github.com/PhyAgentOS/PhyAgentOS-DSH-Plugin/actions/workflows/publish.yml)，再查 npm 精确版本：
 
 ```sh
 npm view @x-era/forge-cli@0.1.2 version gitHead dist.integrity _npmUser --json --prefer-online --registry=https://registry.npmjs.org
-gh release view forge-cli/v0.1.2 --repo PhyAgentOS/dsh-PhyAgentOS
+gh release view forge-cli/v0.1.2 --repo PhyAgentOS/PhyAgentOS-DSH-Plugin
 ```
 
 成功后 GitHub Release 会附带实际发布的 npm tarball。OIDC 发布在 npm 中记录的发布者为 GitHub Actions。使用真实 npm 安装验证消费者入口，详见 [使用手册](usage.md)。
@@ -90,7 +90,7 @@ gh release view forge-cli/v0.1.2 --repo PhyAgentOS/dsh-PhyAgentOS
 | 字段 | 值 |
 | --- | --- |
 | Organization or user | `PhyAgentOS` |
-| Repository | `dsh-PhyAgentOS` |
+| Repository | `PhyAgentOS-DSH-Plugin` |
 | Workflow filename | `publish.yml`，仅文件名 |
 | Environment | 留空；当前工作流未声明 environment |
 | Allow direct npm publish | 开启 |
@@ -121,8 +121,8 @@ npm 接收上传后，脚本每 15 秒查询一次精确版本，最多等待约
 只有 404 会重试。认证、网络、其他 registry 错误、内容不符和等待超时仍会失败。超时后检查 npm 服务状态及通知邮件；不能仅凭 404 判断是在扫描还是已被拒绝。
 
 ```sh
-gh run list --repo PhyAgentOS/dsh-PhyAgentOS --workflow publish.yml --limit 10
-gh workflow run publish.yml --repo PhyAgentOS/dsh-PhyAgentOS --ref forge-cli/v0.1.2
+gh run list --repo PhyAgentOS/PhyAgentOS-DSH-Plugin --workflow publish.yml --limit 10
+gh workflow run publish.yml --repo PhyAgentOS/PhyAgentOS-DSH-Plugin --ref forge-cli/v0.1.2
 ```
 
 手动启动必须选择已有发布 tag，不能选择 `main`。已发布版本仅在源码和 tarball 字节都一致时跳过上传；旧 tag 重跑仍使用旧脚本，不会自动获得之后的修复。

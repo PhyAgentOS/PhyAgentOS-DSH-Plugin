@@ -1,3 +1,18 @@
+export {
+  bootstrapEnvironment,
+  DEFAULT_DORA1_VERSION,
+  DEFAULT_DORA_VERSION,
+  mergeForgeRowConfig,
+} from './bootstrap.js'
+export type {
+  BootstrapBinarySummary,
+  BootstrapComponent,
+  BootstrapExec,
+  BootstrapOptions,
+  BootstrapResult,
+  BootstrapStep,
+  BootstrapStepStatus,
+} from './bootstrap.js'
 export { ForgeCatalog } from './catalog.js'
 export type {
   CatalogListing,
@@ -54,11 +69,30 @@ export { ForgeError, ErrorCode } from './errors.js'
 export type { ErrorCodeValue } from './errors.js'
 export { installSkill } from './install.js'
 export type { InstallOptions, InstallResult } from './install.js'
-export { MANIFEST_VERSION, parseManifest, toolsForProfile } from './manifest.js'
-export type { ForgeArtifactNode, ForgeIssue, ForgeManifest, ForgeProfile, ParsedManifest } from './manifest.js'
+export { MANIFEST_VERSION, modelsForProfile, parseManifest, toolsForProfile } from './manifest.js'
+export type {
+  ForgeArtifactNode,
+  ForgeIssue,
+  ForgeManifest,
+  ForgeModelRequirement,
+  ForgeProfile,
+  ParsedManifest,
+} from './manifest.js'
+export { ModelStore } from './models.js'
+export type {
+  ModelDiagnostic,
+  ModelEntry,
+  ModelFileEntry,
+  ModelInfoResult,
+  ModelReceipt,
+  ModelRequirementStatus,
+  ModelSearchQuery,
+  ModelSearchResult,
+  ModelVerifyResult,
+} from './models.js'
 export { NodeStore } from './nodes.js'
 export type { GcResult, NodeEnsureResult, NodeHooks, NodeStatus } from './nodes.js'
-export { expandHome, forgePaths, FORGE_HOME_ENV, resolveForgeHome } from './paths.js'
+export { expandHome, forgePaths, FORGE_HOME_ENV, FORGE_MODELS_ENV, resolveForgeHome, resolveForgeModelsRoot } from './paths.js'
 export type { ForgePaths } from './paths.js'
 export { DEFAULT_REGISTRY_URL, ForgeRegistryClient } from './registry.js'
 export type { RegistryArtifact, RegistryOptions, RegistrySkillSummary } from './registry.js'

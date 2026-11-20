@@ -12,6 +12,7 @@ export const FORGE_ROW_ID = 'forge-skill'
 export interface ForgeRowConfig {
   home?: string
   skills?: { roots?: string[]; watch?: boolean }
+  models?: { root?: string; mirror?: string }
   registry?: { url?: string; timeoutMs?: number; token?: string; tokenEnv?: string }
   runtime?: { dora?: string; dora1?: string; startTimeoutMs?: number }
   gateway?: { callTimeoutMs?: number }
@@ -211,7 +212,7 @@ export function validateConfig(input: unknown): ForgeRowConfig {
     return value as Record<string, unknown>
   }
 
-  const allowed = new Set(['home', 'skills', 'registry', 'runtime', 'gateway', 'ui'])
+  const allowed = new Set(['home', 'skills', 'models', 'registry', 'runtime', 'gateway', 'ui'])
   for (const key of Object.keys(source)) {
     if (!allowed.has(key)) throw new ForgeError('FORGE_CONFIG_INVALID', `unknown config key "${key}"`)
   }
@@ -227,6 +228,13 @@ export function validateConfig(input: unknown): ForgeRowConfig {
       config.skills.roots = skills['roots'] as string[]
     }
     if (skills['watch'] !== undefined) config.skills.watch = boolean(skills['watch'], 'skills.watch')
+  }
+  if (source['models'] !== undefined) {
+    const models = record(source['models'], 'models')
+    for (const key of Object.keys(models)) if (key !== 'root' && key !== 'mirror') throw new ForgeError('FORGE_CONFIG_INVALID', `unknown key models.${key}`)
+    config.models = {}
+    if (models['root'] !== undefined) config.models.root = string(models['root'], 'models.root')
+    if (models['mirror'] !== undefined) config.models.mirror = string(models['mirror'], 'models.mirror')
   }
   if (source['registry'] !== undefined) {
     const registry = record(source['registry'], 'registry')

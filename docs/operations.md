@@ -1,36 +1,41 @@
 # 运维手册
 
-[使用手册](usage.md) · [发布手册](releasing_zh.md) · [npm 包管理（维护者）](https://www.npmjs.com/settings/x-era/packages)
+[使用手册](usage.md) · [模型目录设计](models.md) · [发布手册](releasing_zh.md) · [npm 包管理（维护者）](https://www.npmjs.com/settings/x-era/packages)
 
 ## 1. 日常检查
 
 ```sh
 forge list                         # 已安装 skill 与运行时状态
 forge status                       # 每个 skill 的运行状态
-forge env                          # 基础环境体检：dora/dora1、Node/Python、数据根、磁盘、registry、端口
+forge env                          # 基础环境体检：dora/dora1、Node/Python、数据根、模型目录、磁盘、registry、端口
+forge models                       # 检索/列出 <home>/models 下的本地模型权重
 forge search robot                 # registry 中可下载的 skill
 forge report                       # 导出诊断报告
 ```
 
-独立 CLI 先安装 `npm install --global @x-era/forge-cli`。在 DSH 里对应 `forge_skill_list` / `forge_runtime_status` / `forge_environment_check`（装完插件后的基础环境体检）；可下载项用 `forge_skill_search`。配置台见 [deployment.md](deployment.md#6-配置界面ui)。
+独立 CLI 先安装 `npm install --global @x-era/forge-cli`。在 DSH 里对应 `forge_skill_list` / `forge_runtime_status` / `forge_environment_check`（装完插件后的基础环境体检）/ `forge_model_search`（本地模型检索）；可下载项用 `forge_skill_search`。配置台见 [deployment.md](deployment.md#6-配置界面ui)。
 
-### 运行时隔离环境
+### 运行时隔离环境与共享模型目录
 
-每个 flow 启动时都会在 `<home>/runtime/env/<skill>/<profile>/<hash>` 物化一份隔离环境。hash 由「skill 版本 + profile id + dataflow 文件内容」决定，同一 dataflow 复用同一目录，启动前整目录重建：
+每个 flow 启动时都会在 `<home>/runtime/env/<skill>/<profile>/<hash>` 物化一份隔离环境。hash 由「skill 版本 + profile id + dataflow 文件内容」决定，同一 dataflow 复用同一目录，启动前整目录重建；共享模型权重独立存放在 `<home>/models/`（详见 [models.md](models.md)）：
 
 ```
-<home>/runtime/
-├── state.json                    # 每个 skill 的运行时记录（profile、flow、envDir、launch、dora、状态）
-├── env/<skill>/<profile>/<hash>/
-│   ├── bin/                      # 节点入口的符号链接（即 FORGE_RUNTIME_BIN）
-│   ├── launch/                   # skill 包副本：占位符已替换、dataflow 已注入 node 级 env
-│   └── runtime-lock.json         # skill/version/profile/binaries/artifacts 快照
-├── nodes/                        # 下载并校验过的节点制品
-├── logs/                         # <flow>.log、dora-coordinator.log、events.jsonl
-└── cache/、jobs/、reports/、dist/
+<home>/
+├── skills/                       # 已安装的 skill 包
+├── support/bin/                  # dora (Forge 1) / dora1 (Forge 2)
+├── models/<id>/<revision>/       # 跨 skill 共享的模型权重与 receipt.json（FORGE_MODELS_DIR）
+└── runtime/
+    ├── state.json                # 每个 skill 的运行时记录（profile、flow、envDir、launch、dora、状态）
+    ├── env/<skill>/<profile>/<hash>/
+    │   ├── bin/                  # 节点入口的符号链接（即 FORGE_RUNTIME_BIN）
+    │   ├── launch/               # skill 包副本：占位符已替换、dataflow 已注入 node 级 env
+    │   └── runtime-lock.json     # skill/version/profile/binaries/models/artifacts 快照
+    ├── nodes/                    # 下载并校验过的节点制品
+    ├── logs/                     # <flow>.log、dora-coordinator.log、events.jsonl
+    └── cache/、jobs/、reports/、dist/
 ```
 
-注入变量（叠加在 `profile.environment` 之上，写进 dataflow 的 node 级 env）：`FORGE_RUNTIME_BIN`、`PAOS_SKILL_ROOT`、`PAOS_SKILL_NAME`、`PAOS_SKILL_VERSION`、`PAOS_RUNTIME_INSTANCE_ID`、`FORGE_FLOW_ID`。
+注入变量（叠加在 `profile.environment` 之上，写进 dataflow 的 node 级 env）：`FORGE_RUNTIME_BIN`、`FORGE_MODELS_DIR`、`PAOS_SKILL_ROOT`、`PAOS_SKILL_NAME`、`PAOS_SKILL_VERSION`、`PAOS_RUNTIME_INSTANCE_ID`、`FORGE_FLOW_ID`（以及 `required_models` 声明的自定义 `env`，如 `SAM3_CHECKPOINT_PATH`）。
 
 两种启动模式：
 

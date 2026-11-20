@@ -36,6 +36,10 @@ export interface ForgeSkillConfig {
     readonly roots?: readonly string[]
     readonly watch?: boolean
   }
+  readonly models?: {
+    readonly root?: string
+    readonly mirror?: string
+  }
   readonly registry?: {
     readonly url?: string
     readonly timeoutMs?: number
@@ -73,6 +77,10 @@ export const Config = z.object({
   skills: z.object({
     roots: z.array(z.string()).default([]),
     watch: z.boolean().default(true),
+  }),
+  models: z.object({
+    root: z.string().default(''),
+    mirror: z.string().default(''),
   }),
   registry: z.object({
     url: z.string().default(''),
@@ -116,7 +124,8 @@ export const Config = z.object({
  */
 export function apply(ctx: Context, config: ForgeSkillConfig = {}): void {
   const home = resolveForgeHome(config.home)
-  const paths = forgePaths(home)
+  const modelsRoot = config.models?.root === undefined || config.models.root.length === 0 ? undefined : config.models.root
+  const paths = forgePaths(home, modelsRoot)
   const configured = config.skills?.roots ?? []
   const roots = configured.length === 0
     ? [paths.skills]
@@ -135,6 +144,8 @@ export function apply(ctx: Context, config: ForgeSkillConfig = {}): void {
   const operations = new ForgeOperations({
     home,
     roots,
+    modelsRoot,
+    profile: ctx.profileContext?.name,
     registry,
     dora: config.runtime?.dora === undefined || config.runtime.dora.length === 0 ? undefined : config.runtime.dora,
     dora1: config.runtime?.dora1 === undefined || config.runtime.dora1.length === 0 ? undefined : config.runtime.dora1,
