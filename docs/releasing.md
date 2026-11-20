@@ -2,7 +2,7 @@ English | [中文](releasing_zh.md) · [README](../README.md) · [User guide](us
 
 # Independent npm releases
 
-[Publish workflow](../.github/workflows/publish.yml) · [Actions](https://github.com/PhyAgentOS/dsh-PhyAgentOS/actions/workflows/publish.yml) · [GitHub Releases](https://github.com/PhyAgentOS/dsh-PhyAgentOS/releases) · [npm package management](https://www.npmjs.com/settings/x-era/packages)
+[Publish workflow](../.github/workflows/publish.yml) · [Actions](https://github.com/PhyAgentOS/PhyAgentOS-DSH-Plugin/actions/workflows/publish.yml) · [GitHub Releases](https://github.com/PhyAgentOS/PhyAgentOS-DSH-Plugin/releases) · [npm package management](https://www.npmjs.com/settings/x-era/packages)
 
 ## Current setup and version files
 
@@ -62,7 +62,7 @@ git tag forge-cli/v0.1.2
 git push origin refs/tags/forge-cli/v0.1.2
 ```
 
-Run the tagging commands only when the printed version is `0.1.2`. Here `origin` is the upstream `PhyAgentOS/dsh-PhyAgentOS` repository. A local tag alone does not trigger Actions; the new remote tag does. A PR merge or ordinary main push does not publish.
+Run the tagging commands only when the printed version is `0.1.2`. Here `origin` is the upstream `PhyAgentOS/PhyAgentOS-DSH-Plugin` repository. A local tag alone does not trigger Actions; the new remote tag does. A PR merge or ordinary main push does not publish.
 
 The workflow checks the exact tag checkout, clean source tree, package version, repository metadata and ancestry in `origin/main`, then tests and publishes only that package. Stable versions use `latest`; prereleases such as `forge-cli/v0.2.0-rc.1` use `next`. Build metadata is rejected, and stable publication cannot move `latest` backwards.
 
@@ -74,11 +74,11 @@ Creating a new tag triggers the same push workflow. Adding a release to an exist
 
 ### 4. Verify publication
 
-Check [Actions](https://github.com/PhyAgentOS/dsh-PhyAgentOS/actions/workflows/publish.yml), then inspect the exact npm version:
+Check [Actions](https://github.com/PhyAgentOS/PhyAgentOS-DSH-Plugin/actions/workflows/publish.yml), then inspect the exact npm version:
 
 ```sh
 npm view @x-era/forge-cli@0.1.2 version gitHead dist.integrity _npmUser --json --prefer-online --registry=https://registry.npmjs.org
-gh release view forge-cli/v0.1.2 --repo PhyAgentOS/dsh-PhyAgentOS
+gh release view forge-cli/v0.1.2 --repo PhyAgentOS/PhyAgentOS-DSH-Plugin
 ```
 
 A successful workflow creates or completes the GitHub Release and attaches the exact npm tarball. For an OIDC release, npm records GitHub Actions as its trusted publisher. Validate consumers through actual npm installation; see the [user guide](usage_en.md).
@@ -90,7 +90,7 @@ For each package, open npm package Settings → Trusted publishing → GitHub Ac
 | Field | Value |
 | --- | --- |
 | Organization or user | `PhyAgentOS` |
-| Repository | `dsh-PhyAgentOS` |
+| Repository | `PhyAgentOS-DSH-Plugin` |
 | Workflow filename | `publish.yml` (filename only) |
 | Environment | Blank; this workflow does not declare an environment |
 | Allow direct npm publish | Enabled |
@@ -121,8 +121,8 @@ After npm accepts an upload, the script checks that exact version every 15 secon
 Only 404 is retried. Authentication, network, other registry errors, content mismatches and expiry of the wait remain failures. If waiting expires, inspect npm service status and notification email; 404 alone does not distinguish ongoing scanning from a rejected version.
 
 ```sh
-gh run list --repo PhyAgentOS/dsh-PhyAgentOS --workflow publish.yml --limit 10
-gh workflow run publish.yml --repo PhyAgentOS/dsh-PhyAgentOS --ref forge-cli/v0.1.2
+gh run list --repo PhyAgentOS/PhyAgentOS-DSH-Plugin --workflow publish.yml --limit 10
+gh workflow run publish.yml --repo PhyAgentOS/PhyAgentOS-DSH-Plugin --ref forge-cli/v0.1.2
 ```
 
 A manual dispatch must select an existing release tag, not `main`. Existing versions are skipped only when source and tarball bytes match. Old tags run their original scripts and do not acquire later fixes.

@@ -20,7 +20,7 @@ for (const [label, manifest] of [['core', core], ['skill', skill], ['cli', cli],
   check(typeof manifest.name === 'string' && manifest.name.startsWith('@x-era/'), `${label}: name must be @x-era/*`)
   check(semver.valid(manifest.version) === manifest.version, `${label}: version must be semver`)
   check(manifest.type === 'module', `${label}: type must be module`)
-  check(manifest.repository?.url === 'git+https://github.com/PhyAgentOS/dsh-PhyAgentOS.git', `${label}: repository must identify the public source`)
+  check(manifest.repository?.url === 'git+https://github.com/PhyAgentOS/PhyAgentOS-DSH-Plugin.git', `${label}: repository must identify the public source`)
 }
 
 check(skill.dsh?.client?.platform === 'web', 'skill: dsh.client.platform must be web')
