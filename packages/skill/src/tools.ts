@@ -190,6 +190,67 @@ export function registerForgeTools(ctx: Context, deps: ForgeToolDeps): Array<() 
     })),
 
     ctx.tools.register(defineTool({
+      name: 'forge_model_search',
+      description: 'Search or list local Forge model weights under <home>/models (or DSH_FORGE_MODELS / models.root). Filter by free text, model id, tag or referencing skill. Read-only.',
+      parameters: {
+        query: { type: 'string', description: 'Optional free text matched against id, revision, description, tags, files, source and referencing skills' },
+        id: { type: 'string', description: 'Optional exact model id filter, e.g. sam3' },
+        tag: { type: 'string', description: 'Optional tag filter, e.g. segmentation' },
+        skill: { type: 'string', description: 'Optional installed skill name to show only models it references' },
+      },
+      output: objectOutput,
+      async execute(args: { query?: string; id?: string; tag?: string; skill?: string }) {
+        try {
+          return {
+            ok: true,
+            ...await ops.modelSearch({
+              query: args.query,
+              id: args.id,
+              tag: args.tag,
+              skill: args.skill,
+            }),
+          }
+        } catch (error) {
+          return failure(error)
+        }
+      },
+    })),
+
+    ctx.tools.register(defineTool({
+      name: 'forge_model_info',
+      description: 'Inspect one local Forge model by id (and optional revision): weight file paths, size, sha256, receipt metadata, available revisions and referencing skills. Read-only.',
+      parameters: {
+        id: { type: 'string', required: true, description: 'Model id under <modelsRoot>, e.g. sam3' },
+        revision: { type: 'string', description: 'Optional revision directory name; defaults to the preferred installed revision' },
+      },
+      output: objectOutput,
+      async execute(args: { id: string; revision?: string }) {
+        try {
+          return { ok: true, ...await ops.modelInfo(args.id, args.revision) }
+        } catch (error) {
+          return failure(error)
+        }
+      },
+    })),
+
+    ctx.tools.register(defineTool({
+      name: 'forge_model_verify',
+      description: 'Verify a local Forge model weight file by hashing it with SHA256 and comparing against its receipt.json. Read-only.',
+      parameters: {
+        id: { type: 'string', required: true, description: 'Model id under <modelsRoot>, e.g. sam3' },
+        revision: { type: 'string', description: 'Optional revision directory name' },
+      },
+      output: objectOutput,
+      async execute(args: { id: string; revision?: string }) {
+        try {
+          return await ops.modelVerify(args.id, args.revision)
+        } catch (error) {
+          return failure(error)
+        }
+      },
+    })),
+
+    ctx.tools.register(defineTool({
       name: 'forge_skill_remove',
       description: 'Remove an installed Forge skill. Requires its runtime to be stopped first.',
       parameters: {
@@ -455,6 +516,114 @@ export function registerForgeTools(ctx: Context, deps: ForgeToolDeps): Array<() 
       async execute(args: { offline?: boolean }) {
         try {
           return await ops.environmentCheck({ offline: args.offline === true })
+        } catch (error) {
+          return failure(error)
+        }
+      },
+    })),
+
+    ctx.tools.register(defineTool({
+      name: 'forge_environment_setup',
+      description: 'Bootstrap Forge base runtime dependencies on a new or incomplete machine: ensures <home>/{skills,models,support/bin,runtime}, installs pinned Forge 1 dora (0.4.1) and Forge 2 dora1 (1.0.1) into isolated venvs under <home>/support/ (or copies provided local binaries), optionally updates cordis.patch.yml, and re-runs forge_environment_check. Existing healthy binaries are kept unless force=true. Pass dry_run=true to preview the plan without changes.',
+      parameters: {
+        dry_run: { type: 'boolean', description: 'Preview the setup plan without creating directories or installing packages' },
+        components: {
+          type: 'array',
+          items: { type: 'string', enum: ['directories', 'dora', 'dora1', 'profileConfig'] },
+          description: 'Optional subset of components to set up; default is directories, dora, dora1 (plus profileConfig if write_profile_config=true)',
+        },
+        dora_version: { type: 'string', description: 'Forge 1 dora-rs-cli version (default 0.4.1)' },
+        dora1_version: { type: 'string', description: 'Forge 2 dora-rs-cli version (default 1.0.1)' },
+        dora_binary_path: { type: 'string', description: 'Optional local Forge 1 dora executable to install instead of downloading' },
+        dora1_binary_path: { type: 'string', description: 'Optional local Forge 2 dora1 executable to install instead of downloading' },
+        python: { type: 'string', description: 'Optional Python interpreter or version (e.g. 3.12 or python3.12)' },
+        index_url: { type: 'string', description: 'Optional PyPI mirror index URL (e.g. https://pypi.tuna.tsinghua.edu.cn/simple)' },
+        force: { type: 'boolean', description: 'Reinstall even when an existing dora/dora1 already passes version check' },
+        write_profile_config: { type: 'boolean', description: 'Also write runtime.dora / runtime.dora1 into the DSH profile cordis.patch.yml' },
+        profile: { type: 'string', description: 'DSH profile name for write_profile_config (defaults to current profile or web)' },
+        offline: { type: 'boolean', description: 'Skip registry probe during post-setup environment verification' },
+      },
+      output: objectOutput,
+      async execute(args: {
+        dry_run?: boolean
+        components?: Array<'directories' | 'dora' | 'dora1' | 'profileConfig'>
+        dora_version?: string
+        dora1_version?: string
+        dora_binary_path?: string
+        dora1_binary_path?: string
+        python?: string
+        index_url?: string
+        force?: boolean
+        write_profile_config?: boolean
+        profile?: string
+        offline?: boolean
+      }) {
+        try {
+          return await ops.environmentSetup({
+            dryRun: args.dry_run === true,
+            components: args.components,
+            doraVersion: args.dora_version,
+            dora1Version: args.dora1_version,
+            doraBinaryPath: args.dora_binary_path,
+            dora1BinaryPath: args.dora1_binary_path,
+            python: args.python,
+            indexUrl: args.index_url,
+            force: args.force === true,
+            writeProfileConfig: args.write_profile_config === true,
+            profile: args.profile,
+            offline: args.offline === true,
+          })
+        } catch (error) {
+          return failure(error)
+        }
+      },
+    })),
+
+    ctx.tools.register(defineTool({
+      name: 'forge_config_read',
+      description: 'Read the forge-skill plugin configuration from a DSH profile cordis.patch.yml, plus available profiles and backups. Read-only.',
+      parameters: {
+        profile: { type: 'string', description: 'DSH profile name (defaults to active profile or web)' },
+      },
+      output: objectOutput,
+      async execute(args: { profile?: string }) {
+        try {
+          return { ok: true, ...await ops.configRead(args.profile) }
+        } catch (error) {
+          return failure(error)
+        }
+      },
+    })),
+
+    ctx.tools.register(defineTool({
+      name: 'forge_config_write',
+      description: 'Safely update the forge-skill plugin configuration in a DSH profile cordis.patch.yml (home, skills, models, registry, runtime, gateway, ui). Validates schema, preserves unrelated rows/comments, keeps a timestamped backup and returns a field-level diff. Merges onto existing forge-skill config by default (set merge=false to replace).',
+      parameters: {
+        profile: { type: 'string', description: 'DSH profile name (defaults to active profile or web)' },
+        config: { type: 'object', required: true, additionalProperties: true, description: 'Forge plugin config object (e.g. { runtime: { dora, dora1 }, models: { root }, registry: { url } })' },
+        merge: { type: 'boolean', description: 'Merge onto existing forge-skill config (default true); false replaces the whole config block' },
+      },
+      output: objectOutput,
+      async execute(args: { profile?: string; config: Record<string, unknown>; merge?: boolean }) {
+        try {
+          return { ok: true, ...await ops.configWrite(args.profile, args.config, { merge: args.merge !== false }) }
+        } catch (error) {
+          return failure(error)
+        }
+      },
+    })),
+
+    ctx.tools.register(defineTool({
+      name: 'forge_config_restore',
+      description: 'Restore a previous cordis.patch.yml.bak-* backup for a DSH profile (keeping the current file as a new backup first).',
+      parameters: {
+        profile: { type: 'string', description: 'DSH profile name (defaults to active profile or web)' },
+        backup: { type: 'string', required: true, description: 'Backup filename from forge_config_read, e.g. cordis.patch.yml.bak-...' },
+      },
+      output: objectOutput,
+      async execute(args: { profile?: string; backup: string }) {
+        try {
+          return { ok: true, ...await ops.configRestore(args.profile, args.backup) }
         } catch (error) {
           return failure(error)
         }

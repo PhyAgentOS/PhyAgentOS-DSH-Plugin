@@ -46,6 +46,23 @@ After adding the bundle, restart the existing host, refresh the page and open a 
 
 Configure the model according to DSH's own instructions before model conversations. Installation and tool-registration checks do not require robot or model calls.
 
+## Initialize the runtime environment in natural language (recommended on a new host)
+
+Once `@x-era/dsh-forge` is added and a new DSH conversation is open, **you do not need to install Dora manually or hand-edit `cordis.patch.yml`**. Walk through initial setup directly in chat:
+
+1. **Check what is missing**:
+   > “I just installed the Forge plugin — check whether this machine is ready to run Forge and tell me what is missing.”
+2. **Preview and bootstrap Dora + managed directories**:
+   > “Preview the Forge environment setup plan first without changing disk.”
+   > “Go ahead and install Forge 1 `dora 0.4.1` and Forge 2 `dora1 1.0.1` into `~/.dsh/forge/support/`, then re-run the environment check.”
+   > (Add a PyPI mirror URL if PyPI is slow, or provide local binary paths for air-gapped machines.)
+3. **Adjust plugin configuration safely** (validated, merged by default, backed up and reversible):
+   > “Show the current Forge plugin config in the `web` profile, then set `models.root` to `/data/forge-models` without changing other settings.”
+4. **Check local model weights**:
+   > “Search `~/.dsh/forge/models` to see which model weights are already present.”
+
+See [deployment.md](deployment.md#0-用自然语言配置初始环境推荐) and [models.md](models.md) for mirror, offline-binary, rollback and model directory details.
+
 ## Use through conversation
 
 | Goal | Example request | Tools |
@@ -54,7 +71,10 @@ Configure the model according to DSH's own instructions before model conversatio
 | Registry discovery | Search installable robot simulation skills and show their returned profiles. | `forge_skill_search` |
 | Install | Install robot-control-sim and its nodes, then report installation progress. | `forge_skill_install`, `forge_install_status` |
 | Inspect and diagnose | Inspect robot-control-sim, read its documentation and diagnose mujoco-piper. | `forge_skill_inspect`, `forge_skill_docs`, `forge_skill_doctor` |
-| Environment | Just installed the plugin: check whether this machine can run Forge (dora/dora1, Node, Python, data root, disk, registry, ports). | `forge_environment_check` |
+| Environment | Just installed the plugin: check whether this machine can run Forge (dora/dora1, Node, Python, data root, models dir, disk, registry, ports). | `forge_environment_check` |
+| Bootstrap new host | Install pinned Forge 1 `dora 0.4.1` & Forge 2 `dora1 1.0.1` into `~/.dsh/forge/support/` and verify. | `forge_environment_setup` |
+| Plugin config | Read or safely update `forge-skill` config in `cordis.patch.yml` (validated, backed up, reversible). | `forge_config_read`, `forge_config_write`, `forge_config_restore` |
+| Local model search | Search local model weights under `~/.dsh/forge/models`, inspect details and verify SHA256. | `forge_model_search`, `forge_model_info`, `forge_model_verify` |
 | Start | Start robot-control-sim / mujoco-piper after preflight succeeds and confirm readiness. | `forge_runtime_start`, `forge_runtime_status` |
 | Query | Call sim.get_robot_info on the running skill to read joints and limits. | `forge_tool_context`, `forge_tool_call` |
 | Stop | Stop robot-control-sim and confirm its final state. | `forge_runtime_stop` |
@@ -112,6 +132,9 @@ CLI output is JSON by default; no `--json` flag is needed.
 | Read/write a profile file | `forge file-read <name> <profile> <file>`, `forge file-write <name> <profile> <file>` (new content on stdin) |
 | Diagnose | `forge doctor <name> --profile <profile>` |
 | Environment check (run right after installing) | `forge env [--offline]` |
+| Bootstrap dora/dora1 on a new host | `forge setup [--dry-run] [--index-url <url>] [--write-config]` |
+| Read/write/restore plugin config | `forge config [profile]`, `forge config-set <json> [--profile <p>]`, `forge config-restore <backup>` |
+| Local model search & verify | `forge models [query] [--id <id>] [--tag <tag>] [--skill <name>]`, `forge model <id> [revision]`, `forge model-verify <id> [revision]` |
 | Export a diagnostic report | `forge report [name]` |
 | Inspect/collect unused artifacts | `forge cache summary`, `forge cache gc --dry-run`, `forge cache gc` |
 | Export a portable skill | `forge export <name> --out <directory>` |

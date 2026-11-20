@@ -1,19 +1,59 @@
 # 部署与配置
 
-[安装与使用](usage.md) · [发布手册](releasing_zh.md) · [README](../README_zh.md)
+[安装与使用](usage.md) · [模型目录设计](models.md) · [发布手册](releasing_zh.md) · [README](../README_zh.md)
 
-先把组合包安装到实际启动的 DSH profile：Web 使用 `dsh plugin --profile web add @x-era/dsh-forge`，源码宿主在 deepseek-harness 仓库执行 `pnpm dsh plugin --profile web add @x-era/dsh-forge`。安装到 dev 不会启用在 web；新增组合包后重启对应宿主。
+新机器只需手动完成“能让 DSH 对话起来”的最小前提（Node.js ≥ 24.9、`@deepseek-ai/dsh`、`@x-era/dsh-forge` 与模型 API Key），**后续 Dora 运行时、目录结构与插件配置都推荐直接在 DSH 对话中用自然语言完成**，无需手写 YAML 或手动拼装 `dora` 虚拟环境。
 
-## 0. 前置环境（装完插件先体检）
+先把组合包安装到实际启动的 DSH profile：Web 使用 `dsh plugin --profile web add @x-era/dsh-forge`，源码宿主在 `deepseek-harness` 仓库执行 `pnpm dsh plugin --profile web add @x-era/dsh-forge`。安装到 `dev` 不会启用在 `web`；新增组合包后重启对应宿主并新建对话。
 
-新装插件后先跑一次环境体检，确认这台机器能起 Forge 运行时，而不是等到第一次 `start` 才在 preflight 里报错：
+## 0. 用自然语言配置初始环境（推荐）
 
-```sh
-forge env                 # 独立 CLI
-# 或 DSH 对话里直接说：检查一下本机环境 / 装完插件能不能跑 → forge_environment_check
-```
+打开 DSH 对话后，按下面 4 步直接用自然语言发指令即可：
 
-体检不依赖已安装的 skill。以本机参考环境为准：
+### 第一步：先做一次环境体检
+
+直接提问：
+
+> “我刚装好 Forge 插件，帮我检查一下这台机器的 Forge 运行环境，看看还缺什么。”
+
+DSH 会调用 `forge_environment_check`（只读），逐项检查平台、Node.js、Forge 1 `dora`（`0.4.1`）、Forge 2 `dora1`（`>=1.0.1,<2`）、Python、数据根、模型目录、磁盘、Registry 与端口，并返回稳定的 `FORGE_ENV_*` 错误码和修复建议。
+
+### 第二步：一键初始化目录与双代 Dora 运行时
+
+如果体检提示缺少 `dora` 或 `dora1`，按你的网络条件直接选一句发给 DSH：
+
+| 场景 | 直接在 DSH 中说 | 实际行为（`forge_environment_setup`） |
+| --- | --- | --- |
+| **先预览再安装（推荐）** | “帮我预览一下 Forge 初始环境的安装计划，先不要改动磁盘。” | `dry_run: true`：只探测 `uv`/Python 与现有 `dora`，返回精确执行计划 |
+| **标准一键安装** | “确认，帮我初始化 Forge 初始环境：创建目录并把 Forge 1 `dora 0.4.1` 和 Forge 2 `dora1 1.0.1` 装到 `~/.dsh/forge/support/`，装完再体检一次。” | 自动建好 `<home>/{skills,models,models/cache,support/bin,runtime}`，优先用 `uv`（回退 `python3 -m venv`）建隔离 `dora-venv`/`dora1-venv` 并软链到 `support/bin/{dora,dora1}`，随后自动复检 |
+| **国内网络 / PyPI 镜像** | “请用清华 PyPI 镜像 `https://pypi.tuna.tsinghua.edu.cn/simple` 帮我安装 Forge 的 `dora` 和 `dora1` 运行时，装完验证。” | 通过 `index_url` 从指定镜像安装，避免 PyPI 超时 |
+| **离线机 / 复用本地二进制** | “这台机器离线，请用 `/opt/bin/dora`（0.4.1）和 `/opt/bin/dora1`（1.0.1）帮我配好 Forge 运行时，并跳过在线 registry 检查。” | 通过 `dora_binary_path` / `dora1_binary_path` + `offline: true` 校验版本后安装到 `support/bin/` |
+| **仅补装或强制重装某一代** | “本机 Forge 2 的 `dora1` 版本不对，请强制重装 `dora1 1.0.1`。” | 通过 `components: ["dora1"]` + `force: true` 仅重装指定项；健康项默认保持 `kept` |
+
+> `<home>/support/bin/{dora,dora1}` 会被 Forge 自动发现，默认**不需要**修改全局 `PATH`，也不必改写 `cordis.patch.yml`。
+
+### 第三步：用自然语言修改或回滚插件配置
+
+当需要修改数据根 `home`、把模型目录挂到大容量磁盘（`models.root`）、切换 Registry 地址或显式固定 `runtime.dora` 时，**不要手改 `cordis.patch.yml`**，直接用自然语言让 DSH 走受控配置工具：
+
+- **查看现有配置与备份**：
+  > “查看当前 `web` profile 下 Forge 插件的配置和历史备份。”（调用 `forge_config_read`）
+- **增量修改配置**（默认合并，不会误删其他已有配置，自动校验并留备份）：
+  > “把 Forge 的模型目录 `models.root` 改到 `/data/forge-models`，并把当前 `dora`/`dora1` 路径写入 `web` profile 配置。”（调用 `forge_config_write`）
+- **改错一键回滚**：
+  > “把 `web` profile 的 Forge 配置回滚到刚才那个备份。”（调用 `forge_config_restore`）
+
+### 第四步：检索本机模型与准备 Skill 专属依赖
+
+- **复用本机已有模型权重**：
+  > “查一下 `~/.dsh/forge/models` 下本机已经有哪些模型权重，校验 `sam3` 的 SHA256。”（调用 `forge_model_search` / `forge_model_verify`）
+- **Skill 专属准备**：大模型权重不通过内网 Forge Registry 托管，由具体 Skill 的准备脚本直接从公共源/镜像下载并落盘到 `$FORGE_MODELS_DIR/<id>/<revision>/`（详见 [models.md](models.md)）；真实硬件 Skill 另需按其 `SKILL.md` 完成 CAN/USB/标定检查。
+
+### 体检标准与等价 CLI 参考
+
+如果希望在终端执行同样操作，可使用独立 CLI（`forge env`、`forge setup --dry-run`、`forge setup`、`forge config`、`forge config-set`、`forge config-restore`）。
+
+体检不依赖已安装的 skill，以本机参考环境为准：
 
 | 项 | 期望 | 失败码 |
 |---|---|---|
@@ -23,6 +63,7 @@ forge env                 # 独立 CLI
 | Forge 2 dora1 | `dora-cli >=1.0.1,<2` | `FORGE_ENV_DORA1_MISSING` / `FORGE_ENV_DORA1_VERSION` |
 | Python | ≥ 3.10（仅 Forge 2 源码节点需要；缺失只告警） | `FORGE_ENV_PYTHON_MISSING` / `FORGE_ENV_PYTHON_VERSION` |
 | 数据根 | `<home>` 可写（默认 `~/.dsh/forge`） | `FORGE_ENV_HOME_UNWRITABLE` |
+| 模型目录 | `<home>/models`（或 `models.root` / `DSH_FORGE_MODELS`）可读、无损坏 `receipt.json` | —（异常时告警） |
 | 磁盘 | 空闲 ≥ 5 GiB（部署节点用；< 1 GiB 直接失败） | `FORGE_ENV_DISK_LOW` |
 | Registry | 在线安装需可达；离线机可加 `--offline` 跳过 | `FORGE_ENV_REGISTRY_UNREACHABLE` |
 | Gateway 端口 | 已装 skill 声明的 `gateway_url` 未被占用 | `FORGE_ENV_PORT_BUSY` |

@@ -5,6 +5,9 @@ import { connect } from 'node:net'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 
+import { ModelStore } from './models.js'
+import { resolveForgeModelsRoot } from './paths.js'
+
 const execFileAsync = promisify(execFile)
 
 /** Minimum Node.js major declared by the plugin `engines` field. */
@@ -121,6 +124,8 @@ export type EnvironmentExec = (
 export interface EnvironmentCheckOptions {
   /** Forge data root; also the path written to and measured for free space. */
   readonly home: string
+  /** Optional override for the shared models root; defaults to `$DSH_FORGE_MODELS` or `<home>/models`. */
+  readonly modelsRoot?: string | undefined
   /** Forge 1 dora CLI; defaults to `<home>/support/bin/dora` then `DSH_FORGE_DORA` then `dora`. */
   readonly dora?: string | undefined
   /** Forge 2 dora CLI; defaults to `<home>/support/bin/dora1` then `DSH_FORGE_DORA1` then `dora1`. */
@@ -336,9 +341,34 @@ export async function checkEnvironment(options: EnvironmentCheckOptions): Promis
     }
   }
 
+  // ---- models store -----------------------------------------------------
+  const modelsRoot = resolveForgeModelsRoot(options.home, options.modelsRoot, env)
+  const modelListing = await new ModelStore(modelsRoot).list()
+  if (modelListing.diagnostics.length > 0) {
+    push({
+      id: 'models',
+      status: 'warn',
+      detail: `${modelListing.count} model(s) under ${modelsRoot} (${modelListing.diagnostics.length} diagnostic(s))`,
+      hint: modelListing.diagnostics[0]?.message,
+    })
+  } else if (!modelListing.exists) {
+    push({
+      id: 'models',
+      status: 'pass',
+      detail: `no models installed yet (${modelsRoot})`,
+    })
+  } else {
+    push({
+      id: 'models',
+      status: 'pass',
+      detail: `${modelListing.count} model(s), ${(modelListing.totalBytes / GIB).toFixed(2)} GiB under ${modelsRoot}`,
+    })
+  }
+
   // ---- variables (values are never printed) -----------------------------
   const variables = [
     'DSH_FORGE_HOME',
+    'DSH_FORGE_MODELS',
     'DSH_FORGE_DORA',
     'DSH_FORGE_DORA1',
     'DSH_FORGE_PYTHON',
@@ -675,6 +705,7 @@ async function writeReport(report: EnvironmentReport): Promise<string | undefine
 /** Variables a materialized dataflow sees on top of `profile.environment`. */
 const INJECTED_VARIABLES = [
   'FORGE_RUNTIME_BIN',
+  'FORGE_MODELS_DIR',
   'PAOS_SKILL_ROOT',
   'PAOS_SKILL_NAME',
   'PAOS_SKILL_VERSION',

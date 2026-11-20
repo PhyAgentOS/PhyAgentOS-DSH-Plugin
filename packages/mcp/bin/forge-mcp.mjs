@@ -48,6 +48,26 @@ const TOOLS = [
   tool('forge_skill_doctor', 'Diagnose one skill.', { name: str('Skill name'), profile: str('Optional profile id') }, ['name']),
   tool('forge_doctor_report', 'Write a JSON diagnostics report for installed skills.', { name: str('Optional skill name') }, []),
   tool('forge_environment_check', 'Check the local base environment for Forge: dora/dora1, Node, Python, data root, disk, registry, gateway ports.', { offline: bool('Skip the registry probe') }, []),
+  tool('forge_environment_setup', 'Bootstrap Forge base runtime dependencies (directories, pinned Forge 1 dora 0.4.1 & Forge 2 dora1 1.0.1 under <home>/support/, optional cordis.patch.yml update) and verify.', {
+    dry_run: bool('Preview plan without changing disk'),
+    dora_version: str('Forge 1 dora-rs-cli version (default 0.4.1)'),
+    dora1_version: str('Forge 2 dora-rs-cli version (default 1.0.1)'),
+    dora_binary_path: str('Optional local Forge 1 dora executable'),
+    dora1_binary_path: str('Optional local Forge 2 dora1 executable'),
+    python: str('Optional Python interpreter or version'),
+    index_url: str('Optional PyPI mirror URL'),
+    force: bool('Reinstall even if healthy'),
+    write_profile_config: bool('Also update cordis.patch.yml'),
+    profile: str('DSH profile name (default web)'),
+    offline: bool('Skip registry probe during verification'),
+  }, []),
+  tool('forge_config_read', 'Read forge-skill config from a DSH profile cordis.patch.yml plus available profiles and backups.', { profile: str('DSH profile name') }, []),
+  tool('forge_config_write', 'Safely validate, back up and write forge-skill config in cordis.patch.yml (merges by default).', {
+    profile: str('DSH profile name'),
+    config: { type: 'object', description: 'Forge config object', additionalProperties: true },
+    merge: bool('Merge onto current config (default true)'),
+  }, ['config']),
+  tool('forge_config_restore', 'Restore a cordis.patch.yml.bak-* backup.', { profile: str('DSH profile name'), backup: str('Backup filename') }, ['backup']),
   tool('forge_runtime_start', 'Start a skill runtime for one profile and wait until ready.', { name: str('Skill name'), profile: str('Profile id'), mode: { type: 'string', enum: ['start', 'run'], description: 'start (coordinator) or run (isolated)' } }, ['name', 'profile']),
   tool('forge_runtime_status', 'Read runtime state for one skill.', { name: str('Skill name') }, ['name']),
   tool('forge_runtime_stop', 'Stop a skill runtime.', { name: str('Skill name'), force: bool('Force stop') }, ['name']),
@@ -61,6 +81,9 @@ const TOOLS = [
   tool('forge_invocation_read', 'Read status and result of an invocation.', { name: str('Skill name'), invocation_id: str('Invocation id') }, ['name', 'invocation_id']),
   tool('forge_cache_summary', 'Summarize the node cache.', {}, []),
   tool('forge_cache_gc', 'Remove unreferenced node artifacts.', { dry_run: bool('Measure only') }, []),
+  tool('forge_model_search', 'Search or list local Forge model weights under <home>/models.', { query: str('Optional free-text query'), id: str('Optional exact model id'), tag: str('Optional tag filter'), skill: str('Optional referencing skill name') }, []),
+  tool('forge_model_info', 'Inspect one local model by id and optional revision.', { id: str('Model id'), revision: str('Optional revision') }, ['id']),
+  tool('forge_model_verify', 'Verify a local model weight file SHA256 against receipt.json.', { id: str('Model id'), revision: str('Optional revision') }, ['id']),
   tool('forge_skill_export', 'Export a skill as a portable SKILL.md directory.', { name: str('Skill name'), out: str('Output directory') }, ['name']),
 ]
 
@@ -88,6 +111,22 @@ async function dispatch(name, args) {
     case 'forge_skill_doctor': return operations.doctor(args.name, args.profile)
     case 'forge_doctor_report': return operations.doctorReport(args.name)
     case 'forge_environment_check': return operations.environmentCheck({ offline: args.offline === true })
+    case 'forge_environment_setup': return operations.environmentSetup({
+      dryRun: args.dry_run === true,
+      doraVersion: args.dora_version,
+      dora1Version: args.dora1_version,
+      doraBinaryPath: args.dora_binary_path,
+      dora1BinaryPath: args.dora1_binary_path,
+      python: args.python,
+      indexUrl: args.index_url,
+      force: args.force === true,
+      writeProfileConfig: args.write_profile_config === true,
+      profile: args.profile,
+      offline: args.offline === true,
+    })
+    case 'forge_config_read': return operations.configRead(args.profile)
+    case 'forge_config_write': return operations.configWrite(args.profile, args.config, { merge: args.merge !== false })
+    case 'forge_config_restore': return operations.configRestore(args.profile, args.backup)
     case 'forge_runtime_start': return operations.runtimeStart(args.name, args.profile, args.mode === 'run' ? 'run' : 'start')
     case 'forge_runtime_status': return operations.runtimeStatus(args.name)
     case 'forge_runtime_stop': return operations.runtimeStop(args.name, args.force === true)
@@ -97,6 +136,9 @@ async function dispatch(name, args) {
     case 'forge_invocation_read': return operations.invocationRead(args.name, args.invocation_id)
     case 'forge_cache_summary': return operations.cacheSummary()
     case 'forge_cache_gc': return operations.cacheGc(args.dry_run === true)
+    case 'forge_model_search': return operations.modelSearch({ query: args.query, id: args.id, tag: args.tag, skill: args.skill })
+    case 'forge_model_info': return operations.modelInfo(args.id, args.revision)
+    case 'forge_model_verify': return operations.modelVerify(args.id, args.revision)
     case 'forge_skill_export': return operations.exportPortable(args.name, args.out ?? `${home}/portable`)
     default: throw Object.assign(new Error(`unknown tool ${name}`), { code: 'FORGE_USAGE' })
   }

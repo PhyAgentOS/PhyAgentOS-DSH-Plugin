@@ -46,6 +46,23 @@ pnpm dsh web
 
 模型调用还需要按 DSH 自身说明完成模型配置。插件安装与注册验证本身不需要启动机器人或调用模型。
 
+## 用自然语言初始化运行环境（新机器推荐）
+
+在新机器装好 `@x-era/dsh-forge` 并打开 DSH 新对话后，**不需要手动安装 Dora 或手改 `cordis.patch.yml`**，直接按顺序用自然语言发指令即可完成初始环境配置：
+
+1. **检查缺项**：
+   > “我刚装好 Forge 插件，帮我检查一下这台机器能不能跑 Forge，看看还缺什么。”
+2. **预览并安装双代 Dora 与标准目录**：
+   > “帮我预览一下 Forge 初始环境的安装计划（先不要改磁盘）。”
+   > “确认，帮我把 Forge 1 `dora 0.4.1` 和 Forge 2 `dora1 1.0.1` 装到 `~/.dsh/forge/support/`，装完再检查一遍。”
+   > （国内网络可补充：“请使用 PyPI 镜像 `https://pypi.tuna.tsinghua.edu.cn/simple`”；离线机可直接指定本机已有二进制路径。）
+3. **按需调整插件配置**（自动合并、校验并保留备份，随时可回滚）：
+   > “查看当前 `web` profile 下 Forge 的配置；把模型目录 `models.root` 设置为 `/data/forge-models`。”
+4. **查看本机已有模型权重**：
+   > “查一下 `~/.dsh/forge/models` 下已经有哪些模型权重。”
+
+更完整的镜像、离线二进制、配置回滚与模型目录说明见 [部署与配置](deployment.md#0-用自然语言配置初始环境推荐) 与 [模型目录设计](models.md)。
+
 ## 在对话中使用
 
 | 目标 | 示例请求 | 工具 |
@@ -54,7 +71,10 @@ pnpm dsh web
 | Registry 有什么 skill | 搜索可安装的机器人仿真 skill，并列出返回的 profile。 | `forge_skill_search` |
 | 安装 | 安装 robot-control-sim 及节点，持续查询安装进度。 | `forge_skill_install`、`forge_install_status` |
 | 查看与检查 | 查看 robot-control-sim 的 profile、依赖和文档，诊断 mujoco-piper。 | `forge_skill_inspect`、`forge_skill_docs`、`forge_skill_doctor` |
-| 环境体检 | 刚装完插件，检查这台机器能不能跑：dora/dora1、Node、Python、数据根、磁盘、registry、端口。 | `forge_environment_check` |
+| 环境体检 | 刚装完插件，检查这台机器能不能跑：dora/dora1、Node、Python、数据根、模型目录、磁盘、registry、端口。 | `forge_environment_check` |
+| 新机环境初始化 | 在新机器一键安装 Forge 1 `dora 0.4.1` 与 Forge 2 `dora1 1.0.1` 到 `~/.dsh/forge/support/` 并自检。 | `forge_environment_setup` |
+| 插件配置读写 | 查看或安全修改 `cordis.patch.yml` 中的 `forge-skill` 配置（带校验与自动备份/回滚）。 | `forge_config_read`、`forge_config_write`、`forge_config_restore` |
+| 本地模型检索 | 查找本机 `~/.dsh/forge/models` 下已安装的模型权重、引用关系并校验 SHA256。 | `forge_model_search`、`forge_model_info`、`forge_model_verify` |
 | 启动 | 检查通过后启动 robot-control-sim / mujoco-piper，并确认就绪状态。 | `forge_runtime_start`、`forge_runtime_status` |
 | 调用 | 调用运行中 skill 的 sim.get_robot_info，读取关节信息和限制。 | `forge_tool_context`、`forge_tool_call` |
 | 停止 | 停止 robot-control-sim 并确认状态。 | `forge_runtime_stop` |
@@ -112,6 +132,9 @@ CLI 默认输出 JSON，不需要额外添加 `--json`。
 | 读取/写入 profile 文件 | `forge file-read <name> <profile> <file>`、`forge file-write <name> <profile> <file>`（新内容从 stdin 输入） |
 | 诊断 | `forge doctor <name> --profile <profile>` |
 | 环境体检（装完插件先跑） | `forge env [--offline]` |
+| 新机一键装 dora/dora1 | `forge setup [--dry-run] [--index-url <url>] [--write-config]` |
+| 安全读写插件配置 | `forge config [profile]`、`forge config-set <json> [--profile <p>]`、`forge config-restore <backup>` |
+| 本地模型检索与校验 | `forge models [query] [--id <id>] [--tag <tag>] [--skill <name>]`、`forge model <id> [revision]`、`forge model-verify <id> [revision]` |
 | 导出诊断报告 | `forge report [name]` |
 | 查看/清理未引用节点 | `forge cache summary`、`forge cache gc --dry-run`、`forge cache gc` |
 | 导出便携技能 | `forge export <name> --out <directory>` |

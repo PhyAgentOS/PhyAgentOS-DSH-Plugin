@@ -36,6 +36,9 @@ gateway per active skill. Use the forge_* tools instead of editing files by hand
 | change tuning (control_hz, poses, frames…) | \`forge_profile_files\` → \`forge_profile_read\` → \`forge_profile_write\` |
 | diagnose why it will not run | \`forge_skill_doctor\`; full report with \`forge_doctor_report\` |
 | verify the machine can run Forge at all (right after installing the plugin) | \`forge_environment_check\` |
+| install/bootstrap Forge 1 \`dora\` (0.4.1) & Forge 2 \`dora1\` (1.0.1) on a new machine | \`forge_environment_setup\` (preview with \`dry_run: true\`) |
+| read or safely update DSH plugin config (\`cordis.patch.yml\`) | \`forge_config_read\` → \`forge_config_write\` (rollback: \`forge_config_restore\`) |
+| search or inspect local model weights under \`<home>/models\` | \`forge_model_search\` / \`forge_model_info\` / \`forge_model_verify\` |
 | reclaim disk | \`forge_cache_summary\` then \`forge_cache_gc\` |
 | remove an installed skill | \`forge_skill_remove\` (stop the runtime first) |
 
@@ -96,9 +99,23 @@ forge_environment_check
 → ok: report the pass/warn lines the user cares about (dora, node, disk, registry)
 → fail: report the FORGE_ENV_* code and hint verbatim, fix it, then re-run once
 \`\`\`
+
+## Bootstrap a new machine (explicit user deployment request)
+
+When the user explicitly asks to set up or configure a new machine's Forge runtime environment:
+
+1. **Inspect first**: run \`forge_environment_check\` and \`forge_config_read\` to see what is missing (\`dora\` 0.4.1, \`dora1\` 1.0.1, Python, writable \`<home>\`, registry, models dir).
+2. **Plan before mutating (or apply directly if the user explicitly asked to install)**:
+   - Call \`forge_environment_setup\` (use \`dry_run: true\` first if the user wants to review the plan).
+   - It creates \`<home>/{skills,models,models/cache,support/bin,runtime}\` and installs pinned \`dora-rs-cli==0.4.1\` (Forge 1 → \`<home>/support/dora-venv\`, linked at \`<home>/support/bin/dora\`) and \`dora-rs-cli==1.0.1\` (Forge 2 → \`<home>/support/dora1-venv\`, linked at \`<home>/support/bin/dora1\`) using \`uv\` (preferred, auto-manages Python 3.12) or \`python3 -m venv\`.
+   - Pass \`index_url\` (e.g. a PyPI mirror) if PyPI is slow, or \`dora_binary_path\` / \`dora1_binary_path\` for offline installs. Existing healthy binaries are kept untouched unless \`force: true\`.
+   - \`<home>/support/bin/{dora,dora1}\` is auto-discovered by Forge; only set \`write_profile_config: true\` or call \`forge_config_write\` when pinning explicit paths, \`registry.url\`, \`models.root\`, or \`home\`.
+3. **Never hand-edit \`cordis.patch.yml\`**: always use \`forge_config_read\` → \`forge_config_write\` (merges by default, validates schema, creates a timestamped backup and returns a diff; rollback with \`forge_config_restore\`).
+4. **Verify closed-loop**: \`forge_environment_setup\` automatically re-runs \`forge_environment_check\`. Confirm \`dora\` (0.4.1), \`dora1\` (>=1.0.1,<2), \`home\`, \`models\`, and \`disk\` all pass.
+5. **Skill-specific prep (models, venvs, hardware)**: large model weights are never hosted in the internal Forge Registry — check \`forge_model_search\` first to reuse existing weights under \`<home>/models\`, and run the skill's own preparation/download script (writing into \`$FORGE_MODELS_DIR/<id>/<revision>/\` with \`receipt.json\`) plus any host hardware checks (CAN/USB/udev) before starting a real-hardware profile.
 `
 
-export const USAGE_SYSTEM_SECTION = `Forge skills: use the forge_* tools rather than editing installed files. Call forge_skill_list/inspect before assuming a skill name or profile. profile files are changed only through forge_profile_read + forge_profile_write (full content; returns a diff and restartRequired), then restart the runtime. Installs are background jobs: poll forge_install_status. Action results are asynchronous: read forge_invocation_read and never retry an unknown outcome; real skills may move hardware. On failure report the FORGE_* code from forge_skill_doctor instead of retrying blindly. For creating, modifying, packaging or debugging a skill bundle, load the forge-skill-development skill; look up node repositories with forge_repo_search / forge_repo_info. After the plugin is installed, or when the user asks whether this machine is ready, run forge_environment_check and report failing FORGE_ENV_* codes with their hints.`
+export const USAGE_SYSTEM_SECTION = `Forge skills: use the forge_* tools rather than editing installed files. Call forge_skill_list/inspect before assuming a skill name or profile. profile files are changed only through forge_profile_read + forge_profile_write (full content; returns a diff and restartRequired), then restart the runtime. Plugin configuration in cordis.patch.yml is changed only through forge_config_read + forge_config_write (validated, backed up, merged by default). Installs are background jobs: poll forge_install_status. Action results are asynchronous: read forge_invocation_read and never retry an unknown outcome; real skills may move hardware. On failure report the FORGE_* code from forge_skill_doctor instead of retrying blindly. For creating, modifying, packaging or debugging a skill bundle, load the forge-skill-development skill; look up node repositories with forge_repo_search / forge_repo_info and local model weights with forge_model_search / forge_model_info / forge_model_verify. After the plugin is installed, or when the user asks whether this machine is ready, run forge_environment_check; when the user explicitly asks to bootstrap a new machine's Dora/runtime environment, use forge_environment_setup and forge_config_write.`
 
 
 /**
@@ -107,7 +124,7 @@ export const USAGE_SYSTEM_SECTION = `Forge skills: use the forge_* tools rather 
  */
 export const RUNTIME_RULES_SECTION = `Forge runtime rules — these override the urge to "fix" something:
 - A failed forge call or a failed instruction is FINAL for the turn. Report it and stop: what failed (skill/profile/tool), the FORGE_* code and the raw message, when it happened, the live process/port state, and what is now blocked.
-- Never repair a failure: do not stop or start a skill, restart a runtime, kill processes, edit gateway/profile/port config, delete runtime directories, or re-run the same call with adjusted parameters.
+- Never repair a failure: do not stop or start a skill, restart a runtime, kill processes, edit gateway/profile/port config, delete runtime directories, or re-run the same call with adjusted parameters. (Explicit user-initiated environment setup via forge_environment_setup / forge_config_write is allowed only when directly requested, never as an automatic reaction to a runtime failure.)
 - Starting or stopping a skill requires an explicit user instruction; never do it to verify or unblock something.
 - An Action with an unknown outcome is evidence, not permission: read forge_invocation_read, report, do not resend.
 - A skill with forge_version "2" is launched with dora run, never forge_runtime_start.

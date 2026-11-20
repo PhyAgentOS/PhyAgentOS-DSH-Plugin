@@ -8,6 +8,25 @@ export const MANIFEST_VERSION = 2
 const SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const SEMVER = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/
 const ARTIFACT_TYPES = new Set(['executable_tar_gz', 'directory_tar_gz'])
+const SAFE_SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
+const SHA256_HEX = /^[a-f0-9]{64}$/i
+const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
+
+/** One declarative model weight requirement inside `skill.yaml`. */
+export interface ForgeModelRequirement {
+  /** Logical model identifier, mapped to `<models>/<id>/<revision>/`. */
+  readonly id: string
+  /** Optional revision/variant directory name (e.g. `pinned_mirror`, `v1`). */
+  readonly revision?: string
+  /** Optional relative weight file inside the model revision directory (e.g. `sam3.pt`). */
+  readonly filename?: string
+  /** Optional pinned SHA256 digest of the weight file. */
+  readonly sha256?: string
+  /** Optional environment variable name injected with the resolved path at runtime. */
+  readonly env?: string
+  /** When true, missing weights warn during preflight instead of blocking start. */
+  readonly optional?: boolean
+}
 
 /** One validation problem, addressed by its path inside `skill.yaml`. */
 export interface ForgeIssue {
@@ -30,6 +49,8 @@ export interface ForgeProfile {
   readonly environment: Readonly<Record<string, string>>
   /** When present this overrides the manifest-level list instead of appending to it. */
   readonly requiredTools?: readonly string[]
+  /** Profile-specific model requirements (merged over manifest-level by `id`). */
+  readonly requiredModels?: readonly ForgeModelRequirement[]
 }
 
 /** One locked node artifact. */
@@ -60,6 +81,7 @@ export interface ForgeManifest {
   /** Gateway base URL; a skill-level field shared by every profile. */
   readonly gatewayUrl?: string
   readonly requiredTools: readonly string[]
+  readonly requiredModels?: readonly ForgeModelRequirement[]
   readonly profiles: Readonly<Record<string, ForgeProfile>>
   readonly artifacts: Readonly<Record<string, ForgeArtifactNode>>
 }
@@ -131,6 +153,7 @@ export function parseManifest(text: string, source = 'skill.yaml'): ParsedManife
   }
 
   const requiredTools = readStringArray(raw['required_tools'], 'required_tools', add) ?? []
+  const requiredModels = readRequiredModels(raw['required_models'], 'required_models', add)
   const profiles = readProfiles(raw['profiles'], add)
   const artifacts = readArtifacts(raw['artifacts'], add)
 
@@ -146,6 +169,7 @@ export function parseManifest(text: string, source = 'skill.yaml'): ParsedManife
     skillDocument,
     ...(gatewayUrl === undefined ? {} : { gatewayUrl }),
     requiredTools,
+    ...(requiredModels.length === 0 ? {} : { requiredModels }),
     profiles,
     artifacts,
   }
@@ -156,6 +180,15 @@ export function parseManifest(text: string, source = 'skill.yaml'): ParsedManife
 export function toolsForProfile(manifest: ForgeManifest, profileId: string): readonly string[] {
   const profile = manifest.profiles[profileId]
   return profile?.requiredTools ?? manifest.requiredTools
+}
+
+/** Resolve effective model requirements for one profile (profile entries override manifest entries of the same `id`). */
+export function modelsForProfile(manifest: ForgeManifest, profileId: string): readonly ForgeModelRequirement[] {
+  const merged = new Map<string, ForgeModelRequirement>()
+  for (const model of manifest.requiredModels ?? []) merged.set(model.id, model)
+  const profile = manifest.profiles[profileId]
+  for (const model of profile?.requiredModels ?? []) merged.set(model.id, model)
+  return [...merged.values()]
 }
 
 /**
@@ -203,6 +236,10 @@ function readProfiles(value: unknown, add: AddIssue): Record<string, ForgeProfil
       ...(() => {
         const requiredTools = readStringArray(raw['required_tools'], `${base}.required_tools`, add)
         return requiredTools === undefined ? {} : { requiredTools }
+      })(),
+      ...(() => {
+        const requiredModels = readRequiredModels(raw['required_models'], `${base}.required_models`, add)
+        return requiredModels.length === 0 ? {} : { requiredModels }
       })(),
     }
   }
@@ -294,6 +331,72 @@ function readStringMap(value: unknown, path: string, add: AddIssue): Record<stri
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function readRequiredModels(value: unknown, path: string, add: AddIssue): ForgeModelRequirement[] {
+  if (value === undefined) return []
+  if (!Array.isArray(value)) {
+    add(path, ErrorCode.manifestInvalid, `${path} must be a list`)
+    return []
+  }
+  const models: ForgeModelRequirement[] = []
+  for (let index = 0; index < value.length; index += 1) {
+    const base = `${path}[${index}]`
+    const raw = value[index]
+    if (!isRecord(raw)) {
+      add(base, ErrorCode.manifestInvalid, 'model requirement must be a mapping')
+      continue
+    }
+    const id = readString(raw, 'id', add, base)
+    if (id === undefined || id.length === 0) {
+      add(`${base}.id`, ErrorCode.manifestInvalid, 'id is required')
+      continue
+    }
+    if (!SAFE_SEGMENT.test(id)) {
+      add(`${base}.id`, ErrorCode.manifestInvalid, `"${id}" is not a valid model id`)
+      continue
+    }
+    const revision = readString(raw, 'revision', add, base)
+    if (revision !== undefined && !SAFE_SEGMENT.test(revision)) {
+      add(`${base}.revision`, ErrorCode.manifestInvalid, `"${revision}" is not a valid model revision`)
+      continue
+    }
+    const filename = readString(raw, 'filename', add, base)
+    if (filename !== undefined) {
+      const normalized = filename.replace(/\\/g, '/')
+      if (normalized.length === 0 || normalized.startsWith('/') || normalized.split('/').some(seg => seg === '..' || seg === '.')) {
+        add(`${base}.filename`, ErrorCode.manifestInvalid, `"${filename}" must be a relative path inside the model directory`)
+        continue
+      }
+    }
+    const sha256 = readString(raw, 'sha256', add, base)
+    if (sha256 !== undefined && !SHA256_HEX.test(sha256)) {
+      add(`${base}.sha256`, ErrorCode.manifestInvalid, `"${sha256}" must be a 64-character hex sha256 digest`)
+      continue
+    }
+    const env = readString(raw, 'env', add, base)
+    if (env !== undefined && !ENV_NAME.test(env)) {
+      add(`${base}.env`, ErrorCode.manifestInvalid, `"${env}" is not a valid environment variable name`)
+      continue
+    }
+    let optional: boolean | undefined
+    if (raw['optional'] !== undefined) {
+      if (typeof raw['optional'] !== 'boolean') {
+        add(`${base}.optional`, ErrorCode.manifestInvalid, 'optional must be a boolean')
+        continue
+      }
+      optional = raw['optional']
+    }
+    models.push({
+      id,
+      ...(revision === undefined ? {} : { revision }),
+      ...(filename === undefined ? {} : { filename }),
+      ...(sha256 === undefined ? {} : { sha256: sha256.toLowerCase() }),
+      ...(env === undefined ? {} : { env }),
+      ...(optional === undefined ? {} : { optional }),
+    })
+  }
+  return models
 }
 
 function isHttpUrl(value: string): boolean {

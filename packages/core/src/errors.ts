@@ -24,6 +24,7 @@ export const ErrorCode = {
   dataflowMissing: 'FORGE_DATAFLOW_MISSING',
   assetMissing: 'FORGE_ASSET_MISSING',
   nodeMissing: 'FORGE_NODE_MISSING',
+  modelMissing: 'FORGE_MODEL_MISSING',
   forgeVersion: 'FORGE_FORGE_VERSION',
   registryUnavailable: 'FORGE_REGISTRY_UNAVAILABLE',
 } as const

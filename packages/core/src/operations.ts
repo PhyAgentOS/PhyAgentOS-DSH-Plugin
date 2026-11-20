@@ -2,6 +2,13 @@ import { mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { parse as parseYaml } from 'yaml'
 
+import {
+  bootstrapEnvironment,
+  mergeForgeRowConfig,
+  type BootstrapComponent,
+  type BootstrapOptions,
+  type BootstrapResult,
+} from './bootstrap.js'
 import { ForgeCatalog, type ForgeSkillEntry } from './catalog.js'
 import { diffValues } from './diff.js'
 import { validateBundle, type BundleValidation } from './validate.js'
@@ -14,12 +21,20 @@ import { installFromArchive, type LocalInstallResult } from './install.js'
 import { installSkill } from './install.js'
 import { JobRunner, type JobRecord } from './jobs.js'
 import { withLock } from './lock.js'
-import type { ForgeManifest } from './manifest.js'
+import { modelsForProfile, type ForgeManifest } from './manifest.js'
+import {
+  type ModelInfoResult,
+  type ModelSearchQuery,
+  type ModelSearchResult,
+  type ModelStore,
+  type ModelVerifyResult,
+} from './models.js'
 import { exportPortableSkill, type PortableExport } from './portable.js'
 import { forgePaths, type ForgePaths } from './paths.js'
 import { findRepository, searchRepositories, type RepositoryEntry } from './repositories.js'
 import { ForgeRegistryClient, type RegistrySkillSummary } from './registry.js'
 import { SkillRuntimeManager, type RuntimeState } from './runtime.js'
+import { DshProfileStore, type ForgeBackup, type ForgeRowConfig } from './settings.js'
 import { SkillFileStore, type SkillTree } from './skill-files.js'
 import { ForgeToolClient } from './tool-client.js'
 
@@ -27,6 +42,12 @@ export interface ForgeOperationsOptions {
   readonly home: string
   /** Skill roots; the first one receives installs. Defaults to `<home>/skills`. */
   readonly roots?: readonly string[] | undefined
+  /** Shared models root override; defaults to `$DSH_FORGE_MODELS` or `<home>/models`. */
+  readonly modelsRoot?: string | undefined
+  /** Active DSH profile name for config operations (defaults to `web`). */
+  readonly profile?: string | undefined
+  /** Override DSH profiles root (defaults to `$DSH_HOME/profiles` or `~/.dsh/profiles`). */
+  readonly profilesRoot?: string | undefined
   readonly registry?: ForgeRegistryClient | undefined
   readonly dora?: string | undefined
   readonly dora1?: string | undefined
@@ -58,6 +79,9 @@ export class ForgeOperations {
   readonly catalogs: readonly ForgeCatalog[]
   readonly registry: ForgeRegistryClient
   readonly runtime: SkillRuntimeManager
+  readonly models: ModelStore
+  readonly profiles: DshProfileStore
+  readonly defaultProfile: string
   readonly files: SkillFileStore
   readonly jobs: JobRunner
   readonly events: EventLog
@@ -68,19 +92,23 @@ export class ForgeOperations {
   private loaded: Promise<void> | undefined
 
   constructor(options: ForgeOperationsOptions) {
-    this.paths = forgePaths(options.home)
+    this.paths = forgePaths(options.home, options.modelsRoot)
     this.registry = options.registry ?? new ForgeRegistryClient()
     const roots = options.roots === undefined || options.roots.length === 0 ? [this.paths.skills] : options.roots
     this.catalogs = roots.map(root => new ForgeCatalog(root))
     this.catalog = this.catalogs[0]!
     this.runtime = new SkillRuntimeManager({
       home: options.home,
+      modelsRoot: this.paths.models,
       catalog: this.catalog,
       registry: this.registry,
       dora: options.dora,
       dora1: options.dora1,
       startTimeoutMs: options.startTimeoutMs,
     })
+    this.models = this.runtime.models
+    this.profiles = new DshProfileStore({ profilesRoot: options.profilesRoot })
+    this.defaultProfile = options.profile !== undefined && options.profile.length > 0 ? options.profile : 'web'
     this.files = new SkillFileStore(this.catalog, join(this.paths.runtime, 'backups'))
     this.jobs = new JobRunner(join(this.paths.runtime, 'jobs'))
     this.events = new EventLog(join(this.paths.runtime, 'logs', 'events.jsonl'), options.events !== false)
@@ -153,7 +181,9 @@ export class ForgeOperations {
         requiredAssets: profile.requiredAssets,
         requiredEnvironment: profile.requiredEnvironment,
         requiredTools: profile.requiredTools ?? entry.manifest.requiredTools,
+        requiredModels: modelsForProfile(entry.manifest, profile.id),
       })),
+      requiredModels: entry.manifest.requiredModels ?? [],
       artifacts: Object.values(entry.manifest.artifacts).map(artifact => ({ ...artifact })),
       checks,
     }
@@ -406,6 +436,7 @@ export class ForgeOperations {
     }
     const report = await checkEnvironment({
       home: this.paths.home,
+      modelsRoot: this.paths.models,
       dora: this.dora,
       dora1: this.dora1,
       registryUrl: this.registry.baseUrl,
@@ -419,6 +450,148 @@ export class ForgeOperations {
       path: report.path ?? null,
     })
     return report
+  }
+
+  /**
+   * Deterministically bootstrap Forge runtime dependencies (`dora` 0.4.1, `dora1` 1.0.1,
+   * managed directories, and optional `cordis.patch.yml` config) on a new or incomplete host.
+   */
+  async environmentSetup(options: {
+    readonly components?: readonly BootstrapComponent[] | undefined
+    readonly doraVersion?: string | undefined
+    readonly dora1Version?: string | undefined
+    readonly doraBinaryPath?: string | undefined
+    readonly dora1BinaryPath?: string | undefined
+    readonly python?: string | undefined
+    readonly indexUrl?: string | undefined
+    readonly force?: boolean | undefined
+    readonly dryRun?: boolean | undefined
+    readonly writeProfileConfig?: boolean | undefined
+    readonly profile?: string | undefined
+    readonly verify?: boolean | undefined
+    readonly offline?: boolean | undefined
+    readonly exec?: BootstrapOptions['exec']
+  } = {}): Promise<BootstrapResult> {
+    await this.ready()
+    const listing = await this.list()
+    const skills: EnvironmentSkill[] = []
+    for (const summary of listing.skills) {
+      const found = await this.find(summary.name)
+      const gatewayUrl = found?.entry.manifest.gatewayUrl
+      skills.push({ name: summary.name, ...(gatewayUrl === undefined ? {} : { gatewayUrl }) })
+    }
+    const run = (): Promise<BootstrapResult> => bootstrapEnvironment({
+      home: this.paths.home,
+      modelsRoot: this.paths.models,
+      components: options.components,
+      doraVersion: options.doraVersion,
+      dora1Version: options.dora1Version,
+      doraBinaryPath: options.doraBinaryPath,
+      dora1BinaryPath: options.dora1BinaryPath,
+      python: options.python,
+      indexUrl: options.indexUrl,
+      force: options.force,
+      dryRun: options.dryRun,
+      writeProfileConfig: options.writeProfileConfig,
+      profile: options.profile ?? this.defaultProfile,
+      profilesRoot: this.profiles.root,
+      verify: options.verify,
+      offline: options.offline,
+      registryUrl: this.registry.baseUrl,
+      skills,
+      exec: options.exec,
+    })
+    const result = options.dryRun === true ? await run() : await withLock(this.lockPath(), run)
+    if (options.dryRun !== true) {
+      void this.events.append('environment.setup', {
+        ok: result.ok,
+        installer: result.installer,
+        dora: result.dora.status,
+        dora1: result.dora1.status,
+      })
+    }
+    return result
+  }
+
+  // ---- DSH profile config (cordis.patch.yml) -----------------------------
+
+  /** Read the `forge-skill` plugin row config, available DSH profiles and backups. */
+  async configRead(profile?: string): Promise<{
+    profile: string
+    profiles: string[]
+    path: string
+    rowExists: boolean
+    config: ForgeRowConfig
+    backups: ForgeBackup[]
+  }> {
+    const target = profile !== undefined && profile.length > 0 ? profile : this.defaultProfile
+    const [profiles, snapshot, backups] = await Promise.all([
+      this.profiles.listProfiles(),
+      this.profiles.read(target),
+      this.profiles.listBackups(target),
+    ])
+    return {
+      profile: target,
+      profiles,
+      path: snapshot.path,
+      rowExists: snapshot.rowExists,
+      config: snapshot.config,
+      backups,
+    }
+  }
+
+  /**
+   * Safely validate and write the `forge-skill` row in `<profile>/cordis.patch.yml`.
+   *
+   * Merges onto the current row config by default (`merge !== false`) so partial updates
+   * (such as `runtime.dora` or `models.root`) never clobber sibling settings. Always keeps
+   * a timestamped backup and returns a field-level diff.
+   */
+  async configWrite(
+    profile: string | undefined,
+    config: unknown,
+    options: { readonly merge?: boolean } = {},
+  ): Promise<{
+    profile: string
+    path: string
+    backup?: string
+    changed: number
+    diff: ReturnType<typeof diffValues>
+    config: ForgeRowConfig
+    note: string
+  }> {
+    if (config === null || typeof config !== 'object' || Array.isArray(config)) {
+      throw new ForgeError('FORGE_CONFIG_INVALID', 'config must be an object')
+    }
+    const target = profile !== undefined && profile.length > 0 ? profile : this.defaultProfile
+    const before = await this.profiles.read(target)
+    const next = options.merge === false
+      ? config
+      : mergeForgeRowConfig(before.config, config as Record<string, unknown>)
+    const written = await withLock(this.lockPath(), () => this.profiles.write(target, next))
+    const after = await this.profiles.read(target)
+    const diff = diffValues(before.config, after.config)
+    void this.events.append('config.write', { profile: target, changed: diff.length, backup: written.backup ?? null })
+    return {
+      profile: target,
+      path: written.path,
+      ...(written.backup === undefined ? {} : { backup: written.backup }),
+      changed: diff.length,
+      diff,
+      config: after.config,
+      note: 'DSH profile cordis.patch.yml updated; HMR reloads plugin config, restart DSH if the plugin was not mounted yet',
+    }
+  }
+
+  /** Restore a previous `cordis.patch.yml.bak-*` backup for one DSH profile. */
+  async configRestore(
+    profile: string | undefined,
+    backup: string,
+  ): Promise<{ profile: string; path: string; restored: string; previous?: string }> {
+    const target = profile !== undefined && profile.length > 0 ? profile : this.defaultProfile
+    const restored = await withLock(this.lockPath(), () => this.profiles.restoreBackup(target, backup))
+    void this.events.append('config.restore', { profile: target, restored: backup })
+    return { profile: target, ...restored }
   }
 
   // ---- runtime -----------------------------------------------------------
@@ -580,6 +753,57 @@ export class ForgeOperations {
       restartRequired: true,
       note: 'restart the skill runtime for this change to take effect',
     }
+  }
+
+  // ---- models ------------------------------------------------------------
+
+  /** Search or list local models under `<home>/models` (or `models.root`). */
+  async modelSearch(query: ModelSearchQuery = {}): Promise<ModelSearchResult> {
+    const refs = await this.modelReferences()
+    return this.models.search(query, refs)
+  }
+
+  /** Inspect one local model by id (and optional revision). */
+  async modelInfo(id: string, revision?: string): Promise<ModelInfoResult> {
+    const refs = await this.modelReferences()
+    const found = await this.models.info(id, revision, refs)
+    if (found === undefined) {
+      const label = revision === undefined ? id : `${id}@${revision}`
+      throw new ForgeError('FORGE_MODEL_NOT_FOUND', `model "${label}" is not installed under ${this.paths.models}`)
+    }
+    return found
+  }
+
+  /** Verify the primary weight file's SHA256 against its `receipt.json`. */
+  async modelVerify(id: string, revision?: string): Promise<ModelVerifyResult> {
+    return this.models.verify(id, revision)
+  }
+
+  private async modelReferences(): Promise<Map<string, string[]>> {
+    const map = new Map<string, Set<string>>()
+    const add = (key: string, skill: string): void => {
+      let set = map.get(key)
+      if (set === undefined) {
+        set = new Set()
+        map.set(key, set)
+      }
+      set.add(skill)
+    }
+    for (const catalog of this.catalogs) {
+      for (const skill of (await catalog.list()).skills) {
+        for (const req of skill.manifest.requiredModels ?? []) {
+          add(req.id, skill.name)
+          if (req.revision !== undefined) add(`${req.id}@${req.revision}`, skill.name)
+        }
+        for (const profile of Object.values(skill.manifest.profiles)) {
+          for (const req of profile.requiredModels ?? []) {
+            add(req.id, skill.name)
+            if (req.revision !== undefined) add(`${req.id}@${req.revision}`, skill.name)
+          }
+        }
+      }
+    }
+    return new Map([...map.entries()].map(([key, set]) => [key, [...set].sort()]))
   }
 
   // ---- cache / export ----------------------------------------------------
