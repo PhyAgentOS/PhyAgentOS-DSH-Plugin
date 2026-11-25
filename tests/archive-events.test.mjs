@@ -18,6 +18,7 @@ test('rejects an archive containing a symlink entry', async () => {
     const out = join(dir, 'out')
     await mkdir(out)
     await assert.rejects(extractArchive(archive, out), /FORGE_ARCHIVE_UNSAFE/)
+    await assert.rejects(extractArchive(archive, out, { allowInternalLinks: true }), /FORGE_ARCHIVE_UNSAFE/)
   } finally {
     await rm(dir, { recursive: true, force: true })
   }
@@ -36,6 +37,17 @@ test('extracts a safe archive', async () => {
   } finally {
     await rm(dir, { recursive: true, force: true })
   }
+})
+
+test('directory archives reject a dangling runtime link', async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'forge-archive-'))
+  t.after(() => rm(dir, { recursive: true, force: true }))
+  await symlink('missing.so', join(dir, 'library.so'))
+  const archive = join(dir, 'node.tar.gz')
+  await tarCreate({ file: archive, cwd: dir, gzip: true, follow: false }, ['library.so'])
+  const out = join(dir, 'out')
+  await mkdir(out)
+  await assert.rejects(extractArchive(archive, out, { allowInternalLinks: true }), /FORGE_ARCHIVE_UNSAFE/)
 })
 
 test('event log appends JSONL and can be disabled', async () => {

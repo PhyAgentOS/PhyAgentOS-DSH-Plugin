@@ -20,6 +20,8 @@ All five packages are public on npm and support independent, tag-triggered relea
 
 The npm management page requires an npm account with organization permissions. Public package pages are available to consumers.
 
+Forge can install `directory_tar_gz` nodes, including the bundled libraries used by skills such as LIBERO. The executable lives at `<entrypoint>/<entrypoint>` inside the archive. Relative symbolic links must resolve inside the archive.
+
 ## Quick start: DSH Web
 
 Use Node.js **>=24.9.0** for the tested DSH host. If `dsh` is not installed:

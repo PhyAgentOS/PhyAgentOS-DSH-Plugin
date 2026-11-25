@@ -1,4 +1,4 @@
-import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { lstat, mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { extractArchive } from './archive.js'
@@ -43,9 +43,8 @@ interface ArtifactMetadata {
 /**
  * Content-addressed cache for locked node artifacts.
  *
- * Layout: `<root>/<artifact_id>/<entrypoint>` plus `.artifact.json` recording the
- * digest the directory was verified against. Reuse across skills is keyed by
- * artifact id, so installing the same node twice costs one download.
+ * Executable nodes keep their entrypoint at the artifact root. Directory nodes
+ * keep it inside the runtime directory named after the entrypoint.
  */
 export class NodeStore {
   constructor(
@@ -57,7 +56,7 @@ export class NodeStore {
   /** Read-only cache inspection; never downloads. */
   async inspect(lock: ForgeArtifactNode, binary = lock.nodeId): Promise<NodeStatus> {
     const dir = join(this.root, lock.artifactId)
-    const entrypoint = join(dir, lock.entrypoint)
+    const entrypoint = nodeEntrypoint(dir, lock)
     if (!(await isExecutable(entrypoint))) {
       return { artifactId: lock.artifactId, entrypoint, state: 'missing', detail: `${binary}: ${dir} is not installed` }
     }
@@ -149,6 +148,10 @@ export class NodeStore {
     if (lock.platform !== process.platform || lock.arch !== archName()) {
       throw new ForgeError('FORGE_NODE_PLATFORM', `${lock.artifactId} targets ${lock.platform}/${lock.arch}`)
     }
+    const directoryNode = lock.artifactType === 'directory_tar_gz'
+    if (directoryNode && (lock.entrypoint === '.' || lock.entrypoint === '..' || /[/\\:\0]/.test(lock.entrypoint))) {
+      throw new ForgeError('FORGE_NODE_ENTRYPOINT', `${lock.artifactId} requires a single entrypoint name`)
+    }
     const artifact = await this.registry.node(lock.artifactId)
     if (lock.sha256 !== undefined && artifact.sha256 !== undefined && artifact.sha256 !== lock.sha256) {
       throw new ForgeError('FORGE_NODE_INTEGRITY', `registry digest for ${lock.artifactId} disagrees with the skill lock`)
@@ -166,26 +169,41 @@ export class NodeStore {
     })
 
     const target = join(this.root, lock.artifactId)
-    const staging = `${target}.staging-${process.pid}`
-    await rm(staging, { recursive: true, force: true })
-    await mkdir(staging, { recursive: true })
-    await extractArchive(archive, staging)
-    if (!(await isExecutable(join(staging, lock.entrypoint)))) {
+    await mkdir(this.root, { recursive: true })
+    const staging = await mkdtemp(join(this.root, '.staging-'))
+    try {
+      await extractArchive(archive, staging, { allowInternalLinks: directoryNode })
+      if (directoryNode) {
+        const entries = await readdir(staging, { withFileTypes: true })
+        if (entries.length !== 1 || entries[0]?.name !== lock.entrypoint || !entries[0].isDirectory()) {
+          throw new ForgeError('FORGE_NODE_ENTRYPOINT', `${lock.artifactId} must contain one root directory named ${lock.entrypoint}`)
+        }
+      }
+      const entrypoint = nodeEntrypoint(staging, lock)
+      if (!(await isExecutable(entrypoint))) {
+        throw new ForgeError('FORGE_NODE_ENTRYPOINT', `${lock.artifactId} has no executable ${entrypoint.slice(staging.length + 1)}`)
+      }
+      const metadata: ArtifactMetadata = {
+        artifactId: lock.artifactId,
+        ...(expected === undefined ? {} : { sha256: expected }),
+        ...(lock.version === undefined ? {} : { version: lock.version }),
+        verifiedAt: new Date().toISOString(),
+      }
+      await writeFile(join(staging, '.artifact.json'), JSON.stringify(metadata, null, 2))
+      await rm(target, { recursive: true, force: true })
+      await rename(staging, target)
+    } finally {
       await rm(staging, { recursive: true, force: true })
-      throw new ForgeError('FORGE_NODE_ENTRYPOINT', `${lock.artifactId} has no executable ${lock.entrypoint}`)
     }
-    const metadata: ArtifactMetadata = {
-      artifactId: lock.artifactId,
-      ...(expected === undefined ? {} : { sha256: expected }),
-      ...(lock.version === undefined ? {} : { version: lock.version }),
-      verifiedAt: new Date().toISOString(),
-    }
-    await writeFile(join(staging, '.artifact.json'), JSON.stringify(metadata, null, 2))
-    await rm(target, { recursive: true, force: true })
-    await rename(staging, target)
     await rm(archive, { force: true })
     return transfer.bytes
   }
+}
+
+function nodeEntrypoint(root: string, lock: ForgeArtifactNode): string {
+  return lock.artifactType === 'directory_tar_gz'
+    ? join(root, lock.entrypoint, lock.entrypoint)
+    : join(root, lock.entrypoint)
 }
 
 async function directorySize(path: string): Promise<number> {
@@ -212,7 +230,7 @@ async function directorySize(path: string): Promise<number> {
 
 async function isExecutable(path: string): Promise<boolean> {
   try {
-    const info = await stat(path)
+    const info = await lstat(path)
     return info.isFile() && (info.mode & 0o111) !== 0
   } catch {
     return false

@@ -20,6 +20,8 @@ DeepSeek Harness（DSH）插件与工具集，用于安装、运行和管理 [Fo
 
 npm 包管理页需要登录具备组织权限的 npm 账号；普通使用者直接访问各包的公共页面即可。
 
+Forge 支持安装 LIBERO 等 Skill 使用的 `directory_tar_gz` 节点及其运行库。可执行文件位于包内的 `<entrypoint>/<entrypoint>`，相对软链接必须解析到包内。
+
 ## 快速开始：DSH Web
 
 已验证的 DSH 宿主要求 Node.js **>=24.9.0**。本机没有 `dsh` 命令时，先安装宿主：
