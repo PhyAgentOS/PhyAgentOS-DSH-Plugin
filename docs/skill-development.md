@@ -106,7 +106,7 @@ tools:
 | 类型 | 归档结构 |
 |---|---|
 | `executable_tar_gz` | 根目录直接是名为 `entrypoint` 的可执行文件 |
-| `directory_tar_gz` | 根目录是名为 `entrypoint` 的目录，内含可执行文件与运行时依赖树 |
+| `directory_tar_gz` | 唯一的顶层目录名为 `entrypoint`，其下同名的 `<entrypoint>/<entrypoint>` 是可执行文件，同层可放运行时依赖 |
 
 打包后计算 `sha256sum` 与字节数写入 `skill.yaml` 的锁；注册表 `/v1/forge-nodes/{artifact_id}` 提供下载地址、大小、摘要，以及 `github_url`（节点源码仓库）。
 
@@ -115,7 +115,7 @@ tar -C dist -czf gateway-1.0.2-linux-x86_64.tar.gz gateway
 sha256sum gateway-1.0.2-linux-x86_64.tar.gz
 ```
 
-安全约束：解包拒绝绝对路径、`..`、符号链接/硬链接；entrypoint 必须可执行；摘要与大小强校验。
+解包拒绝绝对成员路径、成员路径中的 `..` 和硬链接。只有目录型节点允许解析到包内的相对软链接，且不得通过软链接写入其他条目。入口必须是可执行的普通文件，安装继续校验摘要与大小。
 
 ## 6. 运行时如何启动（forge 内部顺序）
 

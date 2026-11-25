@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
-import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, mkdtemp, readFile, readlink, rm, symlink, writeFile } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
@@ -64,4 +65,37 @@ test('node store downloads once, verifies, and reuses the cache', async () => {
     server.close()
     await rm(work, { recursive: true, force: true })
   }
+})
+
+test('directory nodes keep the nested executable and internal runtime links on install and reuse', async t => {
+  const work = await mkdtemp(join(tmpdir(), 'forge-directory-node-'))
+  t.after(() => rm(work, { recursive: true, force: true }))
+  const payload = join(work, 'demo')
+  await mkdir(join(payload, '_internal'), { recursive: true })
+  await writeFile(join(payload, 'demo'), '#!/bin/sh\n', { mode: 0o755 })
+  await writeFile(join(payload, '_internal', 'libdemo.so.1'), 'runtime dependency')
+  await symlink('libdemo.so.1', join(payload, '_internal', 'libdemo.so'))
+  await symlink('../_internal/libdemo.so', join(payload, '_internal', 'libalias.so'))
+  const archive = join(work, 'demo.tar.gz')
+  await tarCreate({ file: archive, cwd: work, gzip: true }, ['demo'])
+  const bytes = await readFile(archive)
+  const sha256 = createHash('sha256').update(bytes).digest('hex')
+
+  const server = createServer((_request, response) => response.end(bytes))
+  await new Promise(resolveListen => server.listen(0, '127.0.0.1', resolveListen))
+  t.after(() => server.close())
+  const url = `http://127.0.0.1:${server.address().port}/demo.tar.gz`
+  const registry = { node: async () => ({ url, sha256, size: bytes.length }) }
+  const store = new NodeStore(join(work, 'nodes'), registry, join(work, 'cache'))
+  const directoryLock = { ...lock, artifactType: 'directory_tar_gz', sha256 }
+  const manifest = { artifacts: { demo: directoryLock } }
+
+  assert.deepEqual((await store.ensureManifest(manifest)).installed, [lock.artifactId])
+  const status = await store.inspect(directoryLock)
+  assert.equal(status.state, 'ready')
+  const installed = join(store.root, lock.artifactId, 'demo')
+  assert.equal(status.entrypoint, join(installed, 'demo'))
+  assert.equal(await readlink(join(installed, '_internal', 'libalias.so')), '../_internal/libdemo.so')
+  assert.equal(await readFile(join(installed, '_internal', 'libalias.so'), 'utf8'), 'runtime dependency')
+  assert.deepEqual((await store.ensureManifest(manifest)).reused, [lock.artifactId])
 })
