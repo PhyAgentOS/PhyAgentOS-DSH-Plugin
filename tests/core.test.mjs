@@ -57,6 +57,45 @@ profiles:
   assert.deepEqual(toolsForProfile(manifest, 'other'), ['sim.get_robot_info', 'sim.reset'])
 })
 
+test('profile startup_timeout_s is parsed, and absent stays undefined', () => {
+  const text = `
+manifest_version: 2
+name: timeout-check
+version: 1.0.0
+description: timeout check
+gateway_url: http://127.0.0.1:19002
+profiles:
+  heavy:
+    dataflow: profiles/heavy/dataflow.yaml
+    startup_timeout_s: 900
+  legacy:
+    dataflow: profiles/legacy/dataflow.yaml
+`
+  const { manifest, issues } = parseManifest(text)
+  assert.deepEqual(issues, [])
+  assert.ok(manifest)
+  assert.equal(manifest.profiles.heavy.startupTimeoutS, 900)
+  assert.equal(manifest.profiles.legacy.startupTimeoutS, undefined)
+})
+
+test('profile startup_timeout_s rejects a non-positive value', () => {
+  const text = `
+manifest_version: 2
+name: timeout-invalid
+version: 1.0.0
+description: timeout invalid
+gateway_url: http://127.0.0.1:19002
+profiles:
+  default:
+    dataflow: profiles/default/dataflow.yaml
+    startup_timeout_s: 0
+`
+  const { issues } = parseManifest(text)
+  const issue = issues.find(entry => entry.path === 'profiles.default.startup_timeout_s')
+  assert.ok(issue)
+  assert.equal(issue.code, 'FORGE_MANIFEST_INVALID')
+})
+
 test('catalog lists valid bundles and keeps broken ones as diagnostics', async () => {
   const catalog = new ForgeCatalog(fixtures)
   const { skills, diagnostics } = await catalog.list()

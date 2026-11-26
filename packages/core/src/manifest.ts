@@ -51,6 +51,11 @@ export interface ForgeProfile {
   readonly requiredTools?: readonly string[]
   /** Profile-specific model requirements (merged over manifest-level by `id`). */
   readonly requiredModels?: readonly ForgeModelRequirement[]
+  /**
+   * Readiness budget in seconds for `forge start`. Absent keeps the runtime
+   * default; heavy policy nodes routinely need far longer than it.
+   */
+  readonly startupTimeoutS?: number
 }
 
 /** One locked node artifact. */
@@ -209,6 +214,19 @@ function readForgeVersion(value: unknown, add: AddIssue): '1' | '2' {
   return '1'
 }
 
+/**
+ * Read `startup_timeout_s` (seconds). Absent means "use the runtime default", so
+ * every existing bundle keeps its current behaviour.
+ */
+function readStartupTimeoutS(value: unknown, path: string, add: AddIssue): number | undefined {
+  if (value === undefined)
+    return undefined
+  if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0) {
+    add(path, ErrorCode.manifestInvalid, 'startup_timeout_s must be a positive integer (seconds)')
+    return undefined
+  }
+  return value
+}
 function readProfiles(value: unknown, add: AddIssue): Record<string, ForgeProfile> {
   if (!isRecord(value)) {
     add('profiles', ErrorCode.manifestInvalid, 'profiles must be a mapping')
@@ -226,9 +244,11 @@ function readProfiles(value: unknown, add: AddIssue): Record<string, ForgeProfil
       add(`${base}.dataflow`, ErrorCode.manifestInvalid, 'dataflow is required')
       continue
     }
+    const startupTimeoutS = readStartupTimeoutS(raw['startup_timeout_s'], `${base}.startup_timeout_s`, add)
     profiles[id] = {
       id,
       dataflow,
+      ...(startupTimeoutS === undefined ? {} : { startupTimeoutS }),
       requiredBinaries: readStringArray(raw['required_binaries'], `${base}.required_binaries`, add) ?? [],
       requiredAssets: readStringArray(raw['required_assets'], `${base}.required_assets`, add) ?? [],
       requiredEnvironment: readStringArray(raw['required_environment'], `${base}.required_environment`, add) ?? [],

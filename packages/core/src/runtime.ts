@@ -335,7 +335,7 @@ export class SkillRuntimeManager {
         ], { cwd: join(envDir, 'launch', dirname(profile.dataflow)), env: this.flowEnv(entry, profile, envDir, modelEnv), timeout: 60000 })
       }
 
-      await this.waitForGateway(gatewayUrl)
+      await this.waitForGateway(gatewayUrl, profile.startupTimeoutS)
       state.status = 'healthy'
       await this.persist()
       return state
@@ -535,8 +535,9 @@ export class SkillRuntimeManager {
     throw new ForgeError('FORGE_DORA_MISSING', 'dora coordinator did not become ready')
   }
 
-  private async waitForGateway(gatewayUrl: string): Promise<void> {
-    const deadline = Date.now() + (this.options.startTimeoutMs ?? 120000)
+  private async waitForGateway(gatewayUrl: string, startupTimeoutS?: number): Promise<void> {
+    const fromProfile = startupTimeoutS === undefined ? undefined : startupTimeoutS * 1000
+    const deadline = Date.now() + (fromProfile ?? this.options.startTimeoutMs ?? 120000)
     const interval = this.options.pollIntervalMs ?? 500
     let last = 'no response'
     while (Date.now() < deadline) {
