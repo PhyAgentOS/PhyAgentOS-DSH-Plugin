@@ -51,16 +51,32 @@ export async function withLock<T>(path: string, task: () => Promise<T>, options:
   }
 }
 
+/**
+ * A lock is stale once its holder is gone. Age alone must never reclaim it:
+ * `start` holds this lock for the whole startup, and a profile may legitimately
+ * declare a `startup_timeout_s` longer than `staleMs`, so an age-based reclaim
+ * would let a second writer in while the first one is still running.
+ *
+ * The age heuristic only remains as a fallback for locks that carry no readable
+ * pid, where liveness cannot be checked. A recycled pid can then keep a dead
+ * lock alive until `timeoutMs` expires, which fails closed (`FORGE_BUSY`)
+ * instead of silently breaking mutual exclusion.
+ */
 async function isStale(path: string, staleMs: number): Promise<boolean> {
+  let owner: { pid?: number }
+  let ageMs: number
   try {
-    const owner = JSON.parse(await readFile(path, 'utf8')) as { pid?: number }
-    if (typeof owner.pid === 'number' && owner.pid !== process.pid && !isAlive(owner.pid)) return true
-    const info = await stat(path)
-    return Date.now() - info.mtimeMs > staleMs
+    owner = JSON.parse(await readFile(path, 'utf8')) as { pid?: number }
+    ageMs = Date.now() - (await stat(path)).mtimeMs
   } catch {
     // Unreadable or half-written lock: treat as stale.
     return true
   }
+  if (typeof owner.pid === 'number') {
+    if (owner.pid === process.pid) return false
+    return !isAlive(owner.pid)
+  }
+  return ageMs > staleMs
 }
 
 function isAlive(pid: number): boolean {
